@@ -1,0 +1,28 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Project Files
+*.sublime-workspace
+*.sublime-project
+
+# Compiled Dynamic libraries
+*.so
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+/nbproject/private/
+Makefile
+/build/CMakeFiles/
+
+# Build results
+/build/
+/Debug
+
+# Other struff
+.*~
+
+

@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
-project( EPnP_Demo )
+project( PNP_DEMO )
+
 find_package( OpenCV REQUIRED )
-include_directories( ${OpenCV_INCLUDE_DIRS} )
+
+include_directories( 
+	$(PNP_DEMO_SOURCE_DIR)/include 
+	${OpenCV_INCLUDE_DIRS} 
+)
+
 add_executable( 
-epnp_demo 
+pnp_demo 
 	src/main.cpp
 	src/CsvReader.cpp 
 	src/CsvWriter.cpp
@@ -14,4 +20,4 @@ epnp_demo
 	src/Utils.cpp
 )
 
-target_link_libraries( epnp_demo ${OpenCV_LIBS} )
+target_link_libraries( pnp_demo ${OpenCV_LIBS} )

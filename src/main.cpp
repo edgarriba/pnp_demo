@@ -29,7 +29,7 @@ FlannBasedMatcher matcher_;
   /*
    * Set up the images paths
    */
-  string img_path = "../Images/resized_IMG_3875.JPG";
+  string img_path = "../Data/resized_IMG_3875.JPG";
   string ply_read_path = "../Data/box.ply";
 
 

@@ -25,8 +25,8 @@ This application is developed and tested on Linux machine running Ubuntu 12.04 L
 
 The installation follows the same steps needed usually to compile using CMake.
 
-* Get the code: Clone (or download and unpack) to your workspace.
-* Compile the pnp_demo: use the CMakeLists.txt to compile the code.
+* **Get the code:** Clone (or download and unpack) to your workspace.
+* **Compile the pnp_demo:** use the CMakeLists.txt to compile the code.
 
       ```bash
       $ cd ~/my_workspace
@@ -37,11 +37,11 @@ The installation follows the same steps needed usually to compile using CMake.
       
 ## How to Run
 The application executable is `pnp_demo` located in `~/my_workspace/pnp_demo/build`.
-
-	```bash
-	$ ./pnp_demo`
-	```
-
+			
+			```bash
+      $ cd ~/my_workspace/pnp_demo/build
+      $ ./pnp_demo
+      ```
 
 ## Contributors
 

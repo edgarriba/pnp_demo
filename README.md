@@ -38,10 +38,10 @@ The installation follows the same steps needed usually to compile using CMake.
 ## How to Run
 The application executable is `pnp_demo` located in `~/my_workspace/pnp_demo/build`.
       
-	      ```bash
-	      $ cd ~/my_workspace/pnp_demo/build
-	      $ ./pnp_demo
-	      ```
+```bash
+$ cd ~/my_workspace/pnp_demo/build
+$ ./pnp_demo
+```
 
 ## Contributors
 

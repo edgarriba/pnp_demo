@@ -38,17 +38,10 @@ The installation follows the same steps needed usually to compile using CMake.
 ## How to Run
 The application executable is `pnp_demo` located in `~/my_workspace/pnp_demo/build`.
 
+			```bash
+			$~/my_workspace/pnp_demo/build ./pnp_demo`
+			```
 
-<pre>
-# Default Setting - 50Hz non-realtime update, the drone transmission rate is 200Hz
-rosrun ardrone_autonomy ardrone_driver _realtime_navdata:=False  _navdata_demo:=0
-
-# 200Hz real-time update
-rosrun ardrone_autonomy ardrone_driver _realtime_navdata:=True _navdata_demo:=0
-
-# 15Hz real-rime update
-rosrun ardrone_autonomy ardrone_driver _realtime_navdata:=True _navdata_demo:=1
-</pre>
 
 ## Contributors
 

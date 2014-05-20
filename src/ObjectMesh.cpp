@@ -32,6 +32,40 @@ Vertex::~Vertex()
   // TODO Auto-generated destructor stub
 }
 
+
+// --------------------------------------------------- //
+//                   TRIANGLE CLASS                    //
+// --------------------------------------------------- //
+
+/**  The custom constructor of the Triangle Class */
+Triangle::Triangle(int id, Vertex V0, Vertex V1, Vertex V2)
+{
+  id_ = id; v0_ = V0; v1_ = V1; v2_ = V2;
+}
+
+/**  The default destructor of the Class */
+Triangle::~Triangle()
+{
+  // TODO Auto-generated destructor stub
+}
+
+
+// --------------------------------------------------- //
+//                     RAY CLASS                       //
+// --------------------------------------------------- //
+
+/**  The custom constructor of the Ray Class */
+Ray::Ray(Point3f P0, Point3f P1) {
+  p0_ = P0; p1_ = P1;
+}
+
+/**  The default destructor of the Class */
+Ray::~Ray()
+{
+  // TODO Auto-generated destructor stub
+}
+
+
 // --------------------------------------------------- //
 //               OBJECT MESH CLASS                     //
 // --------------------------------------------------- //

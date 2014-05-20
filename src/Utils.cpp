@@ -44,6 +44,12 @@ void drawText(Mat image, string text, Scalar color)
 }
 
 // Draw a text with the number of entered points
+void drawText2(Mat image, string text, Scalar color)
+{
+  putText(image, text, Point(25,75), fontFace, fontScale, color, thickness_font, 8);
+}
+
+// Draw a text with the number of entered points
 void drawCounter(Mat image, int n, int n_max, Scalar color)
 {
   string n_str = boost::lexical_cast< string >(n);
@@ -84,11 +90,6 @@ void draw2DPoints(Mat image, vector<Point2f> &list_points, Scalar color)
 
     // Draw Selected points
     circle(image, point_2d, radius, color, -1, lineType );
-
-    string idx = boost::lexical_cast< string >(i+1);
-    string text = "P" + idx;
-    putText(image, text, point_2d, fontFace, fontScale*0.5, color, thickness_font, 8);
-
   }
 }
 
@@ -158,77 +159,26 @@ void drawObjectMesh(Mat image, const ObjectMesh *objMesh, PnPProblem *pnpProblem
 
 
 // Compute key points and draw it
-void computeKeyPoints(const Mat image)
+void computeKeyPoints(const Mat image, std::vector<KeyPoint> &keypoints, Mat &descriptors)
 {
-  string img_path = "../Images/resized_IMG_3873.JPG";
-  Mat image_2 = imread(img_path);
 
-  string window_name = "Key Points";
-  namedWindow(window_name,CV_WINDOW_KEEPRATIO);
+  /* ORB parameters */
+  int nfeatures = 2500;
+  float scaleFactor = 1.2f;
+  int nlevels = 8;
+  int edgeThreshold = 31;
+  int firstLevel = 0;
+  int WTA_K = 2;
+  int scoreType = ORB::HARRIS_SCORE;
+  int patchSize = 31;
 
-  //-- Step 1: Detect the keypoints using SURF Detector
-  int minHessian = 400;
-  SurfFeatureDetector detector( minHessian );
-  SiftFeatureDetector detect;
+  ORB orb(nfeatures, scaleFactor, nlevels, edgeThreshold, firstLevel, WTA_K, scoreType, patchSize);
 
-  std::vector<KeyPoint> keypoints_1, keypoints_2;
-  detect.detect( image, keypoints_1 );
-  detect.detect( image_2, keypoints_2 );
+  //-- Step 1: Calculate keypoints
+  orb.detect( image, keypoints );
 
   //-- Step 2: Calculate descriptors (feature vectors)
-  SurfDescriptorExtractor extractor;
-  SiftDescriptorExtractor extract;
-
-  Mat descriptors_1, descriptors_2;
-  extract.compute( image, keypoints_1, descriptors_1 );
-  extract.compute( image_2, keypoints_2, descriptors_2 );
-
-  //-- Step 3: Matching descriptor vectors using FLANN matcher
-  FlannBasedMatcher matcher;
-  std::vector< DMatch > matches;
-  matcher.match( descriptors_1, descriptors_2, matches );
-
-  double max_dist = 0; double min_dist = 100;
-
-  //-- Quick calculation of max and min distances between keypoints
-  for( int i = 0; i < descriptors_1.rows; i++ )
-  { double dist = matches[i].distance;
-    if( dist < min_dist ) min_dist = dist;
-    if( dist > max_dist ) max_dist = dist;
-  }
-
-  printf("-- Max dist : %f \n", max_dist );
-  printf("-- Min dist : %f \n", min_dist );
-
-  //-- Draw only "good" matches (i.e. whose distance is less than 2*min_dist,
-  //-- or a small arbitary value ( 0.02 ) in the event that min_dist is very
-  //-- small)
-  //-- PS.- radiusMatch can also be used here.
-  std::vector< DMatch > good_matches;
-
-  for( int i = 0; i < descriptors_1.rows; i++ )
-  { if( matches[i].distance <= max(2*min_dist, 0.02) )
-    { good_matches.push_back( matches[i]); }
-  }
-
-  //-- Draw only "good" matches
-  Mat img_matches;
-  drawMatches( image, keypoints_1, image_2, keypoints_2,
-               good_matches, img_matches, Scalar(250,0,0), Scalar(0,0,255),
-               vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
-
-  //-- Draw keypoints
-  Mat img_keypoints_1,img_keypoints_2;
-  drawKeypoints( image, keypoints_1, img_keypoints_1, Scalar(250,0,0), DrawMatchesFlags::DEFAULT );
-  drawKeypoints( image_2, keypoints_2, img_keypoints_2, Scalar(250,0,0), DrawMatchesFlags::DEFAULT );
-
-  //-- Show detected (drawn) keypoints
-  imshow(window_name,img_matches);
-
-  waitKey(0);
-
-  // close the window
-  destroyWindow(window_name);
+  orb.compute( image, keypoints, descriptors );
 
 }
 

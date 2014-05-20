@@ -10,9 +10,11 @@
 #include <sstream>
 
 #include <assert.h>
+#include <boost/lexical_cast.hpp>
 
 #include "PnPProblem.h"
 #include "ObjectMesh.h"
+#include "ObjectModel.h"
 #include "ModelRegistration.h"
 #include "Utils.h"
 
@@ -20,6 +22,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/gpu/gpu.hpp"
 
 using namespace std;
 using namespace cv;
@@ -38,13 +41,18 @@ FlannBasedMatcher matcher_;
    */
   string str_winame_model_registration = "MODEL REGISTRATION";
   string str_winame_check_points = "CHECK POINTS";
+  string str_winame_video_stream = "LIVE DEMO";
+
 
   bool end_registration = false;
 
   /*
    * Set up the intrinsic camera parameters
    */
-  double params[] = {718*55/22.3,480*55/14.9,718/2,480/2}; // fx, fy, cx, cy
+  double f = 55;
+  double sx = 22.3, sy = 14.9;
+  double width = 718, height = 480;
+  double params[] = {width*f/sx,height*f/sy,width/2,height/2}; // fx, fy, cx, cy
 
   /*
    * Set up some basic colors
@@ -60,6 +68,7 @@ FlannBasedMatcher matcher_;
    */
   ModelRegistration modelReg;
   ObjectMesh objMesh;
+  ObjectModel objModel;
   PnPProblem pnpProb(params);
 
 
@@ -93,25 +102,6 @@ static void onMouseModelRegistration( int event, int x, int y, int, void* )
   else if  ( event == EVENT_RBUTTONUP )
   {
       objMesh.incrVertexIterator();
-  }
-}
-
-/*
- *  MODEL REGISTRATION: mouse events callback
- *  Register a point after left button click
- *  Ask next point to register after right click
- *
- */
-static void onMouseBackprojection( int event, int x, int y, int, void* )
-{
-  if  ( event == EVENT_LBUTTONUP )
-  {
-      Point3f point_3d;
-      pnpProb.backproject2DPoint(&objMesh, Point2f(x,y), point_3d);
-  }
-  else if  ( event == EVENT_RBUTTONUP )
-  {
-
   }
 }
 
@@ -222,7 +212,9 @@ int main(int, char**)
   //int flags = CV_ITERATIVE;
   //int flags = CV_P3P;
   int flags = CV_EPNP;
-  if ( pnpProb.estimatePose(modelReg.getAllCorrespondences(), flags) )
+
+  vector<pair<int,pair<Point2f,Point3f> > > list_correspondences = modelReg.getAllCorrespondences();
+  if ( pnpProb.estimatePose(list_correspondences, flags) )
   {
     cout << "Correspondence found" << endl;
 
@@ -230,6 +222,7 @@ int main(int, char**)
     vector<Point2f> pts_2D_verified = pnpProb.verify_points(&objMesh);
     draw2DPoints(img_vis, pts_2D_verified, green);
 
+    // TODO: quality verification
     //p.writeUVfile(csv_write_path);
 
   } else {
@@ -240,9 +233,7 @@ int main(int, char**)
   imshow(str_winame_model_registration, img_vis);
 
   // Show image until ESC pressed
-   waitKey(0);
-
-  //computeKeyPoints(img_in);
+  waitKey(0);
 
   // Close and Destroy Main Window
   destroyWindow(str_winame_model_registration);
@@ -250,24 +241,122 @@ int main(int, char**)
 
    /*
     *
-    * CHECK NEW POINTS
+    * COMPUTE 3D of the image Keypoints
     *
     */
 
   // Create & Open Main Window
   namedWindow(str_winame_check_points,CV_WINDOW_KEEPRATIO);
 
-  // Set up the mouse events
-  setMouseCallback(str_winame_check_points, onMouseBackprojection, 0 );
+  // Containers for keypoints and descriptors
+  std::vector<KeyPoint> keypoints;
+  Mat descriptors;
 
-  drawText(img_in,"CLICK POINTS",red);
-  drawObjectMesh(img_in, &objMesh, &pnpProb, green);
+  // Compute keypoints and descriptors
+  computeKeyPoints(img_in.clone(), keypoints, descriptors);
 
-  // Show the images
-  imshow(str_winame_check_points, img_in);
+  // Check if keypoints are on the surface or not
+  for (unsigned int i = 0; i < keypoints.size(); ++i) {
+    Point2f point_2d(keypoints[i].pt);
+    Point3f point_3d;
+    bool on_surface = pnpProb.backproject2DPoint(&objMesh, point_2d, point_3d);
+    if (on_surface)
+    {
+        objModel.add_correspondence(point_2d, point_3d);
+        objModel.add_descriptor(descriptors.row(i));
+    }
+    else
+    {
+        objModel.add_outer_point(point_2d);
+    }
+  }
 
-  // Show image until ESC pressed
-  waitKey(0);
+  cout << "Size descriptors: " << objModel.get_numDescriptors()  << endl;
+
+
+  // Show keypoints
+  while ( waitKey(30) < 0 )
+  {
+    // Refresh debug image
+    img_vis = img_in.clone();
+
+    vector<Point2f> points_in = objModel.get_2d_points_in();
+    vector<Point2f> points_out = objModel.get_2d_points_out();
+
+    // Draw some debug text
+    string n = boost::lexical_cast< string >(points_in.size());
+    string text = "There are " + n + " inliers";
+    drawText(img_in, text, green);
+
+    // Draw some debug text
+    n = boost::lexical_cast< string >(points_out.size());
+    text = "There are " + n + " outliers";
+    drawText2(img_in, text, red);
+
+    // Draw the object mesh
+    drawObjectMesh(img_in, &objMesh, &pnpProb, blue);
+
+    // Draw found keypoints
+    draw2DPoints(img_in, points_in, green);
+    draw2DPoints(img_in, points_out, red);
+
+    // Show the images
+    imshow(str_winame_check_points, img_in);
+
+  }
+
+  // Close and Destroy Main Window
+  destroyWindow(str_winame_check_points);
+
+
+  /*
+  *
+  * READ VIDEO STREAM AND COMPUTE KEYPOINTS
+  *
+  */
+
+  // Create & Open Main Window
+  namedWindow(str_winame_video_stream,CV_WINDOW_KEEPRATIO);
+
+  VideoCapture cap(0); // open the default camera
+  if(!cap.isOpened())  // check if we succeeded
+      return -1;
+
+  /* ORB parameters */
+  int nfeatures = 2500;
+  float scaleFactor = 1.2f;
+  int nlevels = 8;
+  int edgeThreshold = 31;
+  int firstLevel = 0;
+  int WTA_K = 2;
+  int scoreType = ORB::HARRIS_SCORE;
+  int patchSize = 31;
+
+  ORB orb(nfeatures, scaleFactor, nlevels, edgeThreshold, firstLevel, WTA_K, scoreType, patchSize);
+
+  while( waitKey(30) < 0)
+  {
+      Mat frame;
+      cap >> frame; // get a new frame from camera
+
+      std::vector<KeyPoint> keypoints;
+      Mat descriptors;
+
+      //-- Step 1: Calculate keypoints
+      orb.detect( frame, keypoints );
+
+      //-- Step 2: Calculate descriptors (feature vectors)
+      orb.compute( frame, keypoints, descriptors );
+
+      DrawMatchesFlags flag;
+      drawKeypoints(frame, keypoints, frame, blue, flag.DRAW_RICH_KEYPOINTS);
+
+      imshow(str_winame_video_stream, frame);
+  }
+
+  // the camera will be deinitialized automatically in VideoCapture destructor
+  destroyWindow(str_winame_video_stream);
+
 
   cout << "GOODBYE ..." << endl;
 

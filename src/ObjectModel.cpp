@@ -7,10 +7,10 @@
 
 #include "ObjectModel.h"
 
-ObjectModel::ObjectModel()
+ObjectModel::ObjectModel() : list_points2d_in_(0), list_points2d_out_(0), list_points3d_(0)
 {
-  // TODO Auto-generated constructor stub
-
+  id_ = 0;
+  num_correspondences_ = 0;
 }
 
 ObjectModel::~ObjectModel()

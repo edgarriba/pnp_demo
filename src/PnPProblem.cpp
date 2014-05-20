@@ -13,6 +13,9 @@
 
 using namespace std;
 
+
+/* Functions for Möller–Trumbore intersection algorithm
+ * */
 Point3f CROSS(Point3f v1, Point3f v2)
 {
   Point3f tmp_p;
@@ -36,9 +39,33 @@ Point3f SUB(Point3f v1, Point3f v2)
   return tmp_p;
 }
 
+/* End functions for Möller–Trumbore intersection algorithm
+ *  */
+
+// Function to get the nearest 3D point given a set of them
+Point3f get_nearest_3D_point(vector<Point3f> &points_list, Point3f origin)
+{
+  Point3f p1 = points_list[0];
+  Point3f p2 = points_list[1];
+
+  double d1 = sqrt( pow(p1.x-origin.x, 2) + pow(p1.y-origin.y, 2) + pow(p1.z-origin.z, 2) );
+  double d2 = sqrt( pow(p2.x-origin.x, 2) + pow(p2.y-origin.y, 2) + pow(p2.z-origin.z, 2) );
+
+  if(d1 < d2)
+  {
+      return p1;
+  }
+  else
+  {
+      return p2;
+  }
+}
+
 PnPProblem::PnPProblem()  // default constructor
 {
   _A_matrix = Mat::zeros(3,3,DataType<double>::type);
+  _R_matrix = Mat::zeros(3,3,DataType<double>::type);
+  _t_matrix = Mat::zeros(3,1,DataType<double>::type);
   _P_matrix = Mat::zeros(3,4,DataType<double>::type);
   _A_matrix.at<double>(0,0) = 1;  // fx
   _A_matrix.at<double>(1,1) = 1;  // fy
@@ -50,6 +77,8 @@ PnPProblem::PnPProblem()  // default constructor
 PnPProblem::PnPProblem(const double params[])  // custom constructor
 {
   _A_matrix = Mat::zeros(3,3,DataType<double>::type);
+  _R_matrix = Mat::zeros(3,3,DataType<double>::type);
+  _t_matrix = Mat::zeros(3,1,DataType<double>::type);
   _P_matrix = Mat::zeros(3,4,DataType<double>::type);
   _A_matrix.at<double>(0,0) = params[0];  // fx
   _A_matrix.at<double>(1,1) = params[1];  // fy
@@ -61,6 +90,8 @@ PnPProblem::PnPProblem(const double params[])  // custom constructor
 PnPProblem::PnPProblem(const PnPProblem& P)  // copy constructor
 {
   _A_matrix = P._A_matrix;
+  _R_matrix = P._R_matrix;
+  _t_matrix = P._t_matrix;
   _P_matrix = P._P_matrix;
 }
 
@@ -90,6 +121,7 @@ bool PnPProblem::estimatePose(const vector<pair<int,pair<Point2f,Point3f> > > &c
   vector<Point2f> points_2d;
   vector<Point3f> points_3d;
 
+  // Build correspondences containers
   for(size_t i = 0; i < correspondences.size(); i++)
   {
     cout << "Correspondence " << correspondences.at(i).first << endl;;
@@ -102,28 +134,29 @@ bool PnPProblem::estimatePose(const vector<pair<int,pair<Point2f,Point3f> > > &c
 
   bool useExtrinsicGuess = false;
   cout << "A = "<< endl << " "  << _A_matrix << endl << endl;
-  //cout << "Distance coefficients = "<< endl << " "  << distCoeffs << endl << endl;
 
+  // Pose estimation
   bool correspondence = solvePnP(points_3d, points_2d, _A_matrix, distCoeffs, rvec, tvec, useExtrinsicGuess, flags);
 
   // Transforms Rotation Vector to Matrix
-  Rodrigues(rvec,R_Matrix);
+  Rodrigues(rvec,_R_matrix);
+  _t_matrix = tvec;
 
-  cout << "R = "<< endl << " "  << R_Matrix << endl << endl;
-  cout << "t = "<< endl << " "  << tvec << endl << endl;
+  cout << "R = "<< endl << " "  << _R_matrix << endl << endl;
+  cout << "t = "<< endl << " "  << _t_matrix << endl << endl;
 
   // Rotation-Translation Matrix Definition
-  _P_matrix.at<double>(0,0) = R_Matrix.at<double>(0,0);
-  _P_matrix.at<double>(0,1) = R_Matrix.at<double>(0,1);
-  _P_matrix.at<double>(0,2) = R_Matrix.at<double>(0,2);
-  _P_matrix.at<double>(1,0) = R_Matrix.at<double>(1,0);
-  _P_matrix.at<double>(1,1) = R_Matrix.at<double>(1,1);
-  _P_matrix.at<double>(1,2) = R_Matrix.at<double>(1,2);
-  _P_matrix.at<double>(2,0) = R_Matrix.at<double>(2,0);
-  _P_matrix.at<double>(2,1) = R_Matrix.at<double>(2,1);
-  _P_matrix.at<double>(0,3) = tvec.at<double>(0);
-  _P_matrix.at<double>(1,3) = tvec.at<double>(1);
-  _P_matrix.at<double>(2,3) = tvec.at<double>(2);
+  _P_matrix.at<double>(0,0) = _R_matrix.at<double>(0,0);
+  _P_matrix.at<double>(0,1) = _R_matrix.at<double>(0,1);
+  _P_matrix.at<double>(0,2) = _R_matrix.at<double>(0,2);
+  _P_matrix.at<double>(1,0) = _R_matrix.at<double>(1,0);
+  _P_matrix.at<double>(1,1) = _R_matrix.at<double>(1,1);
+  _P_matrix.at<double>(1,2) = _R_matrix.at<double>(1,2);
+  _P_matrix.at<double>(2,0) = _R_matrix.at<double>(2,0);
+  _P_matrix.at<double>(2,1) = _R_matrix.at<double>(2,1);
+  _P_matrix.at<double>(0,3) = _t_matrix.at<double>(0);
+  _P_matrix.at<double>(1,3) = _t_matrix.at<double>(1);
+  _P_matrix.at<double>(2,3) = _t_matrix.at<double>(2);
 
   cout << "P = "<< endl << " "  << _P_matrix << endl << endl;
 
@@ -168,11 +201,62 @@ Point2f PnPProblem::backproject3DPoint(const Point3f &point)
 
 }
 
-bool PnPProblem::backproject2DPoint(const ObjectMesh *objMesh, const Point2f point2d, Point3f point3d) const
+bool PnPProblem::backproject2DPoint(const ObjectMesh *objMesh, const Point2f &point2d, Point3f &point3d)
 {
-  if(1)
+
+  // Triangles list of the object mesh
+  vector< vector <int> > triangles_list = objMesh->getTrianglesList();
+
+  double lambda = 8;
+  double u = point2d.x;
+  double v = point2d.y;
+
+  // Point in vector form
+  Mat tmp_2dpt = Mat::ones(3,1,cv::DataType<double>::type); // 3x1
+  tmp_2dpt.at<double>(0) = u * lambda;
+  tmp_2dpt.at<double>(1) = v * lambda;
+  tmp_2dpt.at<double>(2) = lambda;
+
+  // Point in camera coordinates
+  Mat X_c = _A_matrix.inv() * tmp_2dpt ; // 3x1
+
+  // Point in world coordinates
+  Mat X_w = _R_matrix.inv() * ( X_c - _t_matrix ); // 3x1
+
+  // Center of projection
+  Mat C_op = Mat(_R_matrix.inv()).mul(-1) * _t_matrix; // 3x1
+
+  // Ray direction vector
+  Mat ray = X_w - C_op; // 3x1
+  ray = ray / norm(ray); // 3x1
+
+  // Set up Ray
+  Ray R((Point3f)C_op, (Point3f)ray);
+
+  // A vector to store the intersections found
+  vector<Point3f> intersections_list;
+
+  // Loop for all the triangles and check the intersection
+  for (unsigned int i = 0; i < triangles_list.size(); i++)
   {
-      cout << "The point " << point2d << " is on the object surface" << endl;
+      Vertex V0 = objMesh->getVertex(triangles_list[i][0]);
+      Vertex V1 = objMesh->getVertex(triangles_list[i][1]);
+      Vertex V2 = objMesh->getVertex(triangles_list[i][2]);
+
+      Triangle T(i, V0, V1, V2);
+
+      double out;
+      if(this->intersect_MollerTrumbore(R, T, &out))
+      {
+        Point3f tmp_pt = R.getP0() + out*R.getP1(); // P = O + t*D
+        intersections_list.push_back(tmp_pt);
+      }
+  }
+
+  // If there are intersection, find the nearest one
+  if (!intersections_list.empty())
+  {
+      point3d = get_nearest_3D_point(intersections_list, R.getP0());
       return true;
   }
   else
@@ -181,38 +265,66 @@ bool PnPProblem::backproject2DPoint(const ObjectMesh *objMesh, const Point2f poi
   }
 }
 
-bool PnPProblem::intersect3D_RayTriangle(Ray R, Triangle T, Point2f *I)
+// Möller–Trumbore intersection algorithm
+bool PnPProblem::intersect_MollerTrumbore(Ray &Ray, Triangle &Triangle, double *out)
 {
   const double EPSILON = 0.000001;
 
-  Point3f edge1, edge2, tvec, pvec, qvec;
-  float det, inv_det;
+  Point3f e1, e2;
+  Point3f P, Q, T;
+  double det, inv_det, u, v;
+  double t;
+
+  Point3f V1 = Triangle.getV0().getPoint();  // Triangle vertices
+  Point3f V2 = Triangle.getV1().getPoint();
+  Point3f V3 = Triangle.getV2().getPoint();
+
+  Point3f O = Ray.getP0(); // Ray origin
+  Point3f D = Ray.getP1(); // Ray direction
 
 
-  //Find vectors for two edges sharing V0
-  edge1 = SUB(T.getV1().getPoint(), T.getV0().getPoint());
-  edge2 = SUB(T.getV2().getPoint(), T.getV0().getPoint());
+  //Find vectors for two edges sharing V1
+  e1 = SUB(V2, V1);
+  e2 = SUB(V3, V1);
 
   // Begin calculation determinant - also used to calculate U parameter
-  pvec = CROSS(R.getP1(), edge2);
+  P = CROSS(D, e2);
 
   // If determinant is near zero, ray lie in plane of triangle
-  det = DOT(edge1, pvec);
+  det = DOT(e1, P);
 
-  if(det < EPSILON) return false;
+  //NOT CULLING
+  if(det > -EPSILON && det < EPSILON) return false;
+  inv_det = 1.f / det;
 
-  return true;
+  //calculate distance from V1 to ray origin
+  T = SUB(O, V1);
+
+  //Calculate u parameter and test bound
+  u = DOT(T, P) * inv_det;
+
+  //The intersection lies outside of the triangle
+  if(u < 0.f || u > 1.f) return false;
+
+  //Prepare to test v parameter
+  Q = CROSS(T, e1);
+
+  //Calculate V parameter and test bound
+  v = DOT(D, Q) * inv_det;
+
+  //The intersection lies outside of the triangle
+  if(v < 0.f || u + v  > 1.f) return false;
+
+  t = DOT(e2, Q) * inv_det;
+
+  if(t > EPSILON) { //ray intersection
+    *out = t;
+    return true;
+  }
+
+  // No hit, no win
+  return false;
 }
 
-void PnPProblem::check_intersect3D(Point2f ray_dir_2d, ObjectMesh *objMesh)
-{
-  Point3f camera_origin;
-  Point3f ray_dir_3d;
-  //Ray R(camera_origin,ray_dir_3d);
-
-
-
-
-}
 
 

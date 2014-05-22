@@ -19,7 +19,7 @@ Some explanations of the project: [Real Time Pose Estimation Tutorial and DLS im
 
 ### Pre-requirements
 
-This application is developed and tested on Linux machine running Ubuntu 12.04 LTS (64 bit) and OpenCV 2.4.6. However it should also work on other mainstream Linux and OpenCV distributions.
+This application is developed and tested on Linux machine running Ubuntu 14.04 LTS (64 bit) and OpenCV 2.4.9.0 However it should also work on other mainstream Linux and OpenCV distributions.
 
 ### Installation Steps
 
@@ -36,11 +36,11 @@ The installation follows the same steps needed usually to compile using CMake.
       ```
       
 ## How to Run
-The application executable is `pnp_demo` located in `~/my_workspace/pnp_demo/build`.
+The application executable is `pnp_app` located in `~/my_workspace/pnp_demo/build`.
       
 ```bash
 $ cd ~/my_workspace/pnp_demo/build
-$ ./pnp_demo
+$ ./pnp_app
 ```
 
 ## Contributors

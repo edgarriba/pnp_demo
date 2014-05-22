@@ -9,7 +9,7 @@ include_directories(
 )
 
 add_executable( 
-pnp_demo 
+pnp_app 
 	src/main.cpp
 	src/CsvReader.cpp 
 	src/CsvWriter.cpp
@@ -20,4 +20,4 @@ pnp_demo
 	src/Utils.cpp
 )
 
-target_link_libraries( pnp_demo ${OpenCV_LIBS} )
+target_link_libraries( pnp_app ${OpenCV_LIBS} )

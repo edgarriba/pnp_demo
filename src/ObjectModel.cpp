@@ -7,7 +7,7 @@
 
 #include "ObjectModel.h"
 
-ObjectModel::ObjectModel() : list_points2d_in_(0), list_points2d_out_(0), list_points3d_(0)
+ObjectModel::ObjectModel() : list_points2d_in_(0), list_points2d_out_(0), list_points3d_in_(0)
 {
   id_ = 0;
   num_correspondences_ = 0;

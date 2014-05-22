@@ -9,10 +9,7 @@
 #define OBJECTMESH_H_
 
 #include <iostream>
-#include <cv.h>
-
-using namespace std;
-using namespace cv;
+#include <opencv2/core.hpp>
 
 
 // --------------------------------------------------- //
@@ -36,20 +33,20 @@ public:
     * @param P - The 3D coordinates of the vertex.
     *
     */
-   explicit Vertex(const int id, const Point3f P);
+   explicit Vertex(const int id, const cv::Point3f P);
 
    /** The default destructor of the Class */
    virtual ~Vertex();
 
    int getId() const { return id_; }
-   Point3f getPoint() const { return p_; }
+   cv::Point3f getPoint() const { return p_; }
 
 
 private:
   /** The identifier number of the vertex */
   int id_;
   /** The 3D coordinates of the vertex */
-  Point3f p_;
+  cv::Point3f p_;
 };
 
 
@@ -70,10 +67,7 @@ public:
    * @return
    *
    */
-  explicit Triangle(int id, Vertex V0, Vertex V1, Vertex V2)
-  {
-    id_ = id; v0_ = V0; v1_ = V1; v2_ = V2;
-  }
+  explicit Triangle(int id, Vertex V0, Vertex V1, Vertex V2);
 
   /** The default destructor of the Class */
   virtual ~Triangle();
@@ -99,14 +93,12 @@ private:
 
 class Ray {
 public:
-  explicit Ray(Point3f P0, Point3f P1) {
-    p0_ = P0; p1_ = P1;
-  }
+  explicit Ray(cv::Point3f P0, cv::Point3f P1);
   virtual ~Ray();
-  Point3f getP0() { return p0_; }
-  Point3f getP1() { return p1_; }
+  cv::Point3f getP0() { return p0_; }
+  cv::Point3f getP1() { return p1_; }
 private:
-  Point3f p0_, p1_;
+  cv::Point3f p0_, p1_;
 };
 
 
@@ -163,7 +155,7 @@ public:
    * @return
    *
    */
-  void loadMesh(const string path_file);
+  void loadMesh(const std::string path_file);
 
    /**
     * Get the current number of vertices
@@ -191,7 +183,7 @@ public:
     *
     */
   int getVertexIter() const { return vertex_iterator_; }
-  vector<vector<int> > getTrianglesList() const { return map_list_triangles_; }
+  std::vector<std::vector<int> > getTrianglesList() const { return map_list_triangles_; }
 
 private:
   /** The identification number of the mesh */
@@ -203,9 +195,9 @@ private:
   /** The current position of vertex list */
   int vertex_iterator_;
   /* The list of triangles of the mesh */
-  vector<Vertex> list_vertex_;
+  std::vector<Vertex> list_vertex_;
   /* The list of triangles of the mesh */
-  vector<vector<int> > map_list_triangles_;
+  std::vector<std::vector<int> > map_list_triangles_;
 };
 
 #endif /* OBJECTMESH_H_ */

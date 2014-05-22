@@ -2,16 +2,16 @@
 #include "CsvReader.h"
 
 /** The default constructor of the CSV reader Class */
-CsvReader::CsvReader(const string &path, const char &separator){
+CsvReader::CsvReader(const std::string &path, const char &separator){
 	_file.open(path.c_str(), ifstream::in);
 	_separator = separator;
 }
 
 /** Read a plane text file with 3D coordinates numbers per point */
-void CsvReader::read(vector<Point3f> &list_pts)
+void CsvReader::read(std::vector<cv::Point3f> &list_pts)
 {
-  string line,x, y, z;
-  Point3f tmp_p;
+	std::string line,x, y, z;
+	cv::Point3f tmp_p;
   while (getline(_file, line)) {
       stringstream liness(line);
       getline(liness, x, _separator);
@@ -27,9 +27,9 @@ void CsvReader::read(vector<Point3f> &list_pts)
 }
 
 /* Read a plane text file with .ply format */
-void CsvReader::readPLY(vector<Vertex> &list_vertex, vector<vector<int> > &list_triangles)
+void CsvReader::readPLY(std::vector<Vertex> &list_vertex, std::vector<std::vector<int> > &list_triangles)
 {
-  string line, tmp_str, n;
+std::string line, tmp_str, n;
   int num_vertex, num_triangles;
   int count = 0;
   bool end_header = false;
@@ -64,7 +64,7 @@ void CsvReader::readPLY(vector<Vertex> &list_vertex, vector<vector<int> > &list_
         getline(liness, y, _separator);
         getline(liness, z);
 
-        Point3f tmp_p;
+        cv::Point3f tmp_p;
         tmp_p.x = boost::lexical_cast< float >(x);
         tmp_p.y = boost::lexical_cast< float >(y);
         tmp_p.z = boost::lexical_cast< float >(z);
@@ -80,13 +80,13 @@ void CsvReader::readPLY(vector<Vertex> &list_vertex, vector<vector<int> > &list_
       // read faces and add into 'list_triangles'
       else if(end_vertex  && count < num_triangles)
       {
-        string num_pts_per_face, id0, id1, id2;
+    	  std::string num_pts_per_face, id0, id1, id2;
         getline(liness, num_pts_per_face, _separator);
         getline(liness, id0, _separator);
         getline(liness, id1, _separator);
         getline(liness, id2);
 
-        vector<int> tmp_triangle(3);
+        std::vector<int> tmp_triangle(3);
         tmp_triangle[0] = boost::lexical_cast< int >(id0);
         tmp_triangle[1] = boost::lexical_cast< int >(id1);
         tmp_triangle[2] = boost::lexical_cast< int >(id2);

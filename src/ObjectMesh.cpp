@@ -16,7 +16,7 @@
 /**  The default constructor of the Vertex Class */
 Vertex::Vertex()
 {
-  // TODO Auto-generated constructor stub
+	id_ = 0;
 }
 
 /**  The custom constructor of the Vertex Class */
@@ -31,7 +31,6 @@ Vertex::~Vertex()
 {
   // TODO Auto-generated destructor stub
 }
-
 
 // --------------------------------------------------- //
 //                   TRIANGLE CLASS                    //
@@ -55,7 +54,7 @@ Triangle::~Triangle()
 // --------------------------------------------------- //
 
 /**  The custom constructor of the Ray Class */
-Ray::Ray(Point3f P0, Point3f P1) {
+Ray::Ray(cv::Point3f P0, cv::Point3f P1) {
   p0_ = P0; p1_ = P1;
 }
 
@@ -92,7 +91,7 @@ void ObjectMesh::incrVertexIterator()
 }
 
 /** Load a CSV file and fill the object mesh */
-void ObjectMesh::loadMesh(const string path) {
+void ObjectMesh::loadMesh(const std::string path) {
 
   // Create the reader
   CsvReader csvReader(path);

@@ -11,28 +11,28 @@
 #include "PnPProblem.h"
 #include "ObjectMesh.h"
 
-using namespace std;
+#include <opencv2/calib3d/calib3d.hpp>
 
 
 /* Functions for Möller–Trumbore intersection algorithm
  * */
-Point3f CROSS(Point3f v1, Point3f v2)
+Point3f CROSS(cv::Point3f v1, cv::Point3f v2)
 {
-  Point3f tmp_p;
+  cv::Point3f tmp_p;
   tmp_p.x =  v1.y*v2.z - v1.z*v2.y;
   tmp_p.y =  v1.z*v2.x - v1.x*v2.z;
   tmp_p.z =  v1.x*v2.y - v1.y*v2.x;
   return tmp_p;
 }
 
-double DOT(Point3f v1, Point3f v2)
+double DOT(cv::Point3f v1, cv::Point3f v2)
 {
   return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
 }
 
-Point3f SUB(Point3f v1, Point3f v2)
+cv::Point3f SUB(cv::Point3f v1, cv::Point3f v2)
 {
-  Point3f tmp_p;
+  cv::Point3f tmp_p;
   tmp_p.x =  v1.x - v2.x;
   tmp_p.y =  v1.y - v2.y;
   tmp_p.z =  v1.z - v2.z;
@@ -43,13 +43,13 @@ Point3f SUB(Point3f v1, Point3f v2)
  *  */
 
 // Function to get the nearest 3D point given a set of them
-Point3f get_nearest_3D_point(vector<Point3f> &points_list, Point3f origin)
+cv::Point3f get_nearest_3D_point(std::vector<cv::Point3f> &points_list, cv::Point3f origin)
 {
-  Point3f p1 = points_list[0];
-  Point3f p2 = points_list[1];
+  cv::Point3f p1 = points_list[0];
+  cv::Point3f p2 = points_list[1];
 
-  double d1 = sqrt( pow(p1.x-origin.x, 2) + pow(p1.y-origin.y, 2) + pow(p1.z-origin.z, 2) );
-  double d2 = sqrt( pow(p2.x-origin.x, 2) + pow(p2.y-origin.y, 2) + pow(p2.z-origin.z, 2) );
+  double d1 = std::sqrt( std::pow(p1.x-origin.x, 2) + std::pow(p1.y-origin.y, 2) + std::pow(p1.z-origin.z, 2) );
+  double d2 = std::sqrt( std::pow(p2.x-origin.x, 2) + std::pow(p2.y-origin.y, 2) + std::pow(p2.z-origin.z, 2) );
 
   if(d1 < d2)
   {
@@ -63,28 +63,28 @@ Point3f get_nearest_3D_point(vector<Point3f> &points_list, Point3f origin)
 
 PnPProblem::PnPProblem()  // default constructor
 {
-  _A_matrix = Mat::zeros(3,3,DataType<double>::type);
-  _R_matrix = Mat::zeros(3,3,DataType<double>::type);
-  _t_matrix = Mat::zeros(3,1,DataType<double>::type);
-  _P_matrix = Mat::zeros(3,4,DataType<double>::type);
-  _A_matrix.at<double>(0,0) = 1;  // fx
-  _A_matrix.at<double>(1,1) = 1;  // fy
-  _A_matrix.at<double>(1,2) = 1;  // cx
-  _A_matrix.at<double>(0,2) = 1;  // cy
-  _A_matrix.at<double>(2,2) = 1;
+  _A_matrix = cv::Mat::zeros(3, 3, cv::DataType<double>::type);
+  _R_matrix = cv::Mat::zeros(3, 3, cv::DataType<double>::type);
+  _t_matrix = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
+  _P_matrix = cv::Mat::zeros(3, 4, cv::DataType<double>::type);
+  _A_matrix.at<double>(0, 0) = 1;  // fx
+  _A_matrix.at<double>(1, 1) = 1;  // fy
+  _A_matrix.at<double>(1, 2) = 1;  // cx
+  _A_matrix.at<double>(0, 2) = 1;  // cy
+  _A_matrix.at<double>(2, 2) = 1;
 }
 
 PnPProblem::PnPProblem(const double params[])  // custom constructor
 {
-  _A_matrix = Mat::zeros(3,3,DataType<double>::type);
-  _R_matrix = Mat::zeros(3,3,DataType<double>::type);
-  _t_matrix = Mat::zeros(3,1,DataType<double>::type);
-  _P_matrix = Mat::zeros(3,4,DataType<double>::type);
-  _A_matrix.at<double>(0,0) = params[0];  // fx
-  _A_matrix.at<double>(1,1) = params[1];  // fy
-  _A_matrix.at<double>(0,2) = params[2];  // cx
-  _A_matrix.at<double>(1,2) = params[3];  // cy
-  _A_matrix.at<double>(2,2) = 1;
+  _A_matrix = cv::Mat::zeros(3, 3, cv::DataType<double>::type);
+  _R_matrix = cv::Mat::zeros(3, 3, cv::DataType<double>::type);
+  _t_matrix = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
+  _P_matrix = cv::Mat::zeros(3, 4, cv::DataType<double>::type);
+  _A_matrix.at<double>(0, 0) = params[0];  // fx
+  _A_matrix.at<double>(1, 1) = params[1];  // fy
+  _A_matrix.at<double>(0, 2) = params[2];  // cx
+  _A_matrix.at<double>(1, 2) = params[3];  // cy
+  _A_matrix.at<double>(2, 2) = 1;
 }
 
 PnPProblem::PnPProblem(const PnPProblem& P)  // copy constructor
@@ -103,47 +103,47 @@ PnPProblem::~PnPProblem()
 
 void PnPProblem::set_Amatrix(const double params[])  // custom constructor
 {
-  _A_matrix.at<double>(0,0) = params[0];  // fx
-  _A_matrix.at<double>(1,1) = params[1];  // fy
-  _A_matrix.at<double>(1,2) = params[2];  // cx
-  _A_matrix.at<double>(0,2) = params[3];  // cy
-  _A_matrix.at<double>(2,2) = 1;
+  _A_matrix.at<double>(0, 0) = params[0];  // fx
+  _A_matrix.at<double>(1, 1) = params[1];  // fy
+  _A_matrix.at<double>(1, 2) = params[2];  // cx
+  _A_matrix.at<double>(0, 2) = params[3];  // cy
+  _A_matrix.at<double>(2, 2) = 1;
 }
 
-bool PnPProblem::estimatePose(const vector<pair<int,pair<Point2f,Point3f> > > &correspondences, int flags)
+bool PnPProblem::estimatePose(const std::vector<std::pair<int, std::pair<cv::Point2f, cv::Point3f> > > &correspondences, int flags)
 {
 
-  Mat distCoeffs = Mat::zeros(4,1,DataType<double>::type);
-  Mat rvec = Mat::zeros(3,1,cv::DataType<double>::type);
-  Mat tvec = Mat::zeros(3,1,cv::DataType<double>::type);
-  Mat R_Matrix = Mat::zeros(3,3,DataType<double>::type);
+  cv::Mat distCoeffs = cv::Mat::zeros(4, 1, cv::DataType<double>::type);
+  cv::Mat rvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
+  cv::Mat tvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
+  cv::Mat R_Matrix = cv::Mat::zeros(3, 3, DataType<double>::type);
 
-  vector<Point2f> points_2d;
-  vector<Point3f> points_3d;
+  std::vector<cv::Point2f> points_2d;
+  std::vector<cv::Point3f> points_3d;
 
   // Build correspondences containers
   for(size_t i = 0; i < correspondences.size(); i++)
   {
-    cout << "Correspondence " << correspondences.at(i).first << endl;;
-    cout << "P 2D " << correspondences.at(i).second.first << endl;
-    cout << "P 3D " << correspondences.at(i).second.second << endl;
+    std::cout << "Correspondence " << correspondences.at(i).first << std::endl;;
+    std::cout << "P 2D " << correspondences.at(i).second.first << std::endl;
+    std::cout << "P 3D " << correspondences.at(i).second.second << std::endl;
 
     points_2d.push_back(correspondences.at(i).second.first);
     points_3d.push_back(correspondences.at(i).second.second);
   }
 
   bool useExtrinsicGuess = false;
-  cout << "A = "<< endl << " "  << _A_matrix << endl << endl;
+  std::cout << "A = "<< std::endl << " "  << _A_matrix << std::endl << std::endl;
 
   // Pose estimation
-  bool correspondence = solvePnP(points_3d, points_2d, _A_matrix, distCoeffs, rvec, tvec, useExtrinsicGuess, flags);
+  bool correspondence = cv::solvePnP(points_3d, points_2d, _A_matrix, distCoeffs, rvec, tvec, useExtrinsicGuess, flags);
 
   // Transforms Rotation Vector to Matrix
   Rodrigues(rvec,_R_matrix);
   _t_matrix = tvec;
 
-  cout << "R = "<< endl << " "  << _R_matrix << endl << endl;
-  cout << "t = "<< endl << " "  << _t_matrix << endl << endl;
+  std::cout << "R = "<< std::endl << " "  << _R_matrix << std::endl << std::endl;
+  std::cout << "t = "<< std::endl << " "  << _t_matrix << std::endl << std::endl;
 
   // Rotation-Translation Matrix Definition
   _P_matrix.at<double>(0,0) = _R_matrix.at<double>(0,0);
@@ -158,42 +158,42 @@ bool PnPProblem::estimatePose(const vector<pair<int,pair<Point2f,Point3f> > > &c
   _P_matrix.at<double>(1,3) = _t_matrix.at<double>(1);
   _P_matrix.at<double>(2,3) = _t_matrix.at<double>(2);
 
-  cout << "P = "<< endl << " "  << _P_matrix << endl << endl;
+  std::cout << "P = "<< std::endl << " "  << _P_matrix << std::endl << std::endl;
 
   return correspondence;
 }
 
 vector<Point2f> PnPProblem::verify_points(ObjectMesh *objMesh)
 {
-  vector<Point2f> verified_points_2d;
+  std::vector<cv::Point2f> verified_points_2d;
   for( int i = 0; i < objMesh->getNumVertices(); i++)
   {
-     Point3f tmp_point_3d = objMesh->getVertex(i).getPoint();
-     Point2f tmp_computed_point_2d = this->backproject3DPoint(tmp_point_3d);
-     verified_points_2d.push_back(tmp_computed_point_2d);
+    cv::Point3f tmp_point_3d = objMesh->getVertex(i).getPoint();
+    cv::Point2f tmp_computed_point_2d = this->backproject3DPoint(tmp_point_3d);
+    verified_points_2d.push_back(tmp_computed_point_2d);
 
-     /*cout << "Correspondence " << i << endl;;
-     cout << "P 3D " << tmp_point_3d << endl;
-     cout << "P 2D " << tmp_computed_point_2d << endl;*/
+    /*cout << "Correspondence " << i << endl;;
+    cout << "P 3D " << tmp_point_3d << endl;
+    cout << "P 2D " << tmp_computed_point_2d << endl;*/
   }
 
   return verified_points_2d;
 }
 
-Point2f PnPProblem::backproject3DPoint(const Point3f &point)
+cv::Point2f PnPProblem::backproject3DPoint(const cv::Point3f &point)
 {
 
   // Temporal 3d Point vector
-  Mat tmp_3dpt = Mat::ones(4,1,cv::DataType<double>::type);
+  cv::Mat tmp_3dpt = cv::Mat::ones(4, 1, cv::DataType<double>::type);
   tmp_3dpt.at<double>(0) = point.x;
   tmp_3dpt.at<double>(1) = point.y;
   tmp_3dpt.at<double>(2) = point.z;
 
   // Calculation of temporal [u v 1]'
-  Mat tmp_uv = _A_matrix * _P_matrix * tmp_3dpt;
+  cv::Mat tmp_uv = _A_matrix * _P_matrix * tmp_3dpt;
 
   // Normalization of [u v]
-  Point2f tmp_2dpt;
+  cv::Point2f tmp_2dpt;
   tmp_2dpt.x = tmp_uv.at<double>(0) / tmp_uv.at<double>(2);
   tmp_2dpt.y = tmp_uv.at<double>(1) / tmp_uv.at<double>(2);
 
@@ -201,40 +201,40 @@ Point2f PnPProblem::backproject3DPoint(const Point3f &point)
 
 }
 
-bool PnPProblem::backproject2DPoint(const ObjectMesh *objMesh, const Point2f &point2d, Point3f &point3d)
+bool PnPProblem::backproject2DPoint(const ObjectMesh *objMesh, const cv::Point2f &point2d, cv::Point3f &point3d)
 {
 
   // Triangles list of the object mesh
-  vector< vector <int> > triangles_list = objMesh->getTrianglesList();
+  std::vector<std::vector<int> > triangles_list = objMesh->getTrianglesList();
 
   double lambda = 8;
   double u = point2d.x;
   double v = point2d.y;
 
   // Point in vector form
-  Mat tmp_2dpt = Mat::ones(3,1,cv::DataType<double>::type); // 3x1
+  cv::Mat tmp_2dpt = cv::Mat::ones(3, 1, cv::DataType<double>::type); // 3x1
   tmp_2dpt.at<double>(0) = u * lambda;
   tmp_2dpt.at<double>(1) = v * lambda;
   tmp_2dpt.at<double>(2) = lambda;
 
   // Point in camera coordinates
-  Mat X_c = _A_matrix.inv() * tmp_2dpt ; // 3x1
+  cv::Mat X_c = _A_matrix.inv() * tmp_2dpt ; // 3x1
 
   // Point in world coordinates
-  Mat X_w = _R_matrix.inv() * ( X_c - _t_matrix ); // 3x1
+  cv::Mat X_w = _R_matrix.inv() * ( X_c - _t_matrix ); // 3x1
 
   // Center of projection
-  Mat C_op = Mat(_R_matrix.inv()).mul(-1) * _t_matrix; // 3x1
+  cv::Mat C_op = cv::Mat(_R_matrix.inv()).mul(-1) * _t_matrix; // 3x1
 
   // Ray direction vector
-  Mat ray = X_w - C_op; // 3x1
-  ray = ray / norm(ray); // 3x1
+  cv::Mat ray = X_w - C_op; // 3x1
+  ray = ray / cv::norm(ray); // 3x1
 
   // Set up Ray
-  Ray R((Point3f)C_op, (Point3f)ray);
+  Ray R((cv::Point3f)C_op, (cv::Point3f)ray);
 
   // A vector to store the intersections found
-  vector<Point3f> intersections_list;
+  std::vector<cv::Point3f> intersections_list;
 
   // Loop for all the triangles and check the intersection
   for (unsigned int i = 0; i < triangles_list.size(); i++)
@@ -270,17 +270,17 @@ bool PnPProblem::intersect_MollerTrumbore(Ray &Ray, Triangle &Triangle, double *
 {
   const double EPSILON = 0.000001;
 
-  Point3f e1, e2;
-  Point3f P, Q, T;
+  cv::Point3f e1, e2;
+  cv::Point3f P, Q, T;
   double det, inv_det, u, v;
   double t;
 
-  Point3f V1 = Triangle.getV0().getPoint();  // Triangle vertices
-  Point3f V2 = Triangle.getV1().getPoint();
-  Point3f V3 = Triangle.getV2().getPoint();
+  cv::Point3f V1 = Triangle.getV0().getPoint();  // Triangle vertices
+  cv::Point3f V2 = Triangle.getV1().getPoint();
+  cv::Point3f V3 = Triangle.getV2().getPoint();
 
-  Point3f O = Ray.getP0(); // Ray origin
-  Point3f D = Ray.getP1(); // Ray direction
+  cv::Point3f O = Ray.getP0(); // Ray origin
+  cv::Point3f D = Ray.getP1(); // Ray direction
 
 
   //Find vectors for two edges sharing V1

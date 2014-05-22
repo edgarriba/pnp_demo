@@ -7,27 +7,8 @@ CsvReader::CsvReader(const std::string &path, const char &separator){
 	_separator = separator;
 }
 
-/** Read a plane text file with 3D coordinates numbers per point */
-void CsvReader::read(std::vector<cv::Point3f> &list_pts)
-{
-	std::string line,x, y, z;
-	cv::Point3f tmp_p;
-  while (getline(_file, line)) {
-      stringstream liness(line);
-      getline(liness, x, _separator);
-      getline(liness, y, _separator);
-      getline(liness, z);
-      if(!x.empty() && !y.empty() && !z.empty()) {
-          tmp_p.x = atof(x.c_str());
-          tmp_p.y = atof(y.c_str());
-          tmp_p.z = atof(z.c_str());
-          list_pts.push_back(tmp_p);
-      }
-  }
-}
-
 /* Read a plane text file with .ply format */
-void CsvReader::readPLY(std::vector<Vertex> &list_vertex, std::vector<std::vector<int> > &list_triangles)
+void CsvReader::readPLY(std::vector<cv::Point3f> &list_vertex, std::vector<std::vector<int> > &list_triangles)
 {
 std::string line, tmp_str, n;
   int num_vertex, num_triangles;
@@ -68,7 +49,7 @@ std::string line, tmp_str, n;
         tmp_p.x = boost::lexical_cast< float >(x);
         tmp_p.y = boost::lexical_cast< float >(y);
         tmp_p.z = boost::lexical_cast< float >(z);
-        list_vertex.push_back(Vertex(count,tmp_p));
+        list_vertex.push_back(tmp_p);
 
         count++;
         if(count == num_vertex)

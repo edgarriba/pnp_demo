@@ -33,19 +33,19 @@ void drawQuestion(cv::Mat image, cv::Point3f point, cv::Scalar color)
   std::string z = boost::lexical_cast< std::string >((int)point.z);
 
   std::string text = " Where is point (" + x + ","  + y + "," + z + ") ?";
-  cv::putText(image, text, Point(25,50), fontFace, fontScale, color, thickness_font, 8);
+  cv::putText(image, text, cv::Point(25,50), fontFace, fontScale, color, thickness_font, 8);
 }
 
 // Draw a text with the number of entered points
 void drawText(cv::Mat image, std::string text, cv::Scalar color)
 {
-  cv::putText(image, text, Point(25,50), fontFace, fontScale, color, thickness_font, 8);
+  cv::putText(image, text, cv::Point(25,50), fontFace, fontScale, color, thickness_font, 8);
 }
 
 // Draw a text with the number of entered points
 void drawText2(cv::Mat image, std::string text, cv::Scalar color)
 {
-  cv::putText(image, text, Point(25,75), fontFace, fontScale, color, thickness_font, 8);
+  cv::putText(image, text, cv::Point(25,75), fontFace, fontScale, color, thickness_font, 8);
 }
 
 // Draw a text with the number of entered points
@@ -54,22 +54,21 @@ void drawCounter(cv::Mat image, int n, int n_max, cv::Scalar color)
   std::string n_str = boost::lexical_cast< std::string >(n);
   std::string n_max_str = boost::lexical_cast< std::string >(n_max);
   std::string text = n_str + " of " + n_max_str + " points";
-  cv::putText(image, text, Point(500,50), fontFace, fontScale, color, thickness_font, 8);
+  cv::putText(image, text, cv::Point(500,50), fontFace, fontScale, color, thickness_font, 8);
 }
 
 // Draw the points and the coordinates
-void drawPoints(cv::Mat image, ModelRegistration *modelReg, cv::Scalar color)
+void drawPoints(cv::Mat image, std::vector<cv::Point2f> &list_points_2d, std::vector<cv::Point3f> &list_points_3d, cv::Scalar color)
 {
-  for ( int i = 0; i < modelReg->getNum(); i++)
+  for (unsigned int i = 0; i < list_points_2d.size(); ++i)
   {
-    std::pair<int, std::pair<cv::Point2f, cv::Point3f> > correspondence = modelReg->getCorrespondence(i);
-    cv::Point2f point_2d = correspondence.second.first;
-    cv::Point3f point_3d = correspondence.second.second;
+    cv::Point2f point_2d = list_points_2d[i];
+    cv::Point3f point_3d = list_points_3d[i];
 
     // Draw Selected points
     cv::circle(image, point_2d, radius, color, -1, lineType );
 
-    std::string idx = boost::lexical_cast< std::string >(correspondence.first);
+    std::string idx = boost::lexical_cast< std::string >(i+1);
     std::string x = boost::lexical_cast< std::string >((int)point_3d.x);
     std::string y = boost::lexical_cast< std::string >((int)point_3d.y);
     std::string z = boost::lexical_cast< std::string >((int)point_3d.z);
@@ -81,6 +80,7 @@ void drawPoints(cv::Mat image, ModelRegistration *modelReg, cv::Scalar color)
   }
 }
 
+// Draw only the points
 void draw2DPoints(cv::Mat image, std::vector<cv::Point2f> &list_points, cv::Scalar color)
 {
   for( size_t i = 0; i < list_points.size(); i++)
@@ -142,9 +142,9 @@ void drawObjectMesh(cv::Mat image, const ObjectMesh *objMesh, PnPProblem *pnpPro
   {
     std::vector<int> tmp_triangle = list_triangles.at(i);
 
-    cv::Point3f point_3d_0 = objMesh->getVertex(tmp_triangle[0]).getPoint();
-    cv::Point3f point_3d_1 = objMesh->getVertex(tmp_triangle[1]).getPoint();
-    cv::Point3f point_3d_2 = objMesh->getVertex(tmp_triangle[2]).getPoint();
+    cv::Point3f point_3d_0 = objMesh->getVertex(tmp_triangle[0]);
+    cv::Point3f point_3d_1 = objMesh->getVertex(tmp_triangle[1]);
+    cv::Point3f point_3d_2 = objMesh->getVertex(tmp_triangle[2]);
 
     cv::Point2f point_2d_0 = pnpProblem->backproject3DPoint(point_3d_0);
     cv::Point2f point_2d_1 = pnpProblem->backproject3DPoint(point_3d_1);

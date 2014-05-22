@@ -13,45 +13,6 @@
 
 
 // --------------------------------------------------- //
-//                  VERTEX CLASS                       //
-// --------------------------------------------------- //
-
-class Vertex {
-public:
-    /**
-    * The default constructor of the Vertex Class.
-    *
-    * @param
-    * @return
-    */
-    Vertex();
-
-   /**
-    * The custom constructor of the Triangle Class.
-    *
-    * @param id - The identification number.
-    * @param P - The 3D coordinates of the vertex.
-    *
-    */
-   explicit Vertex(const int id, const cv::Point3f P);
-
-   /** The default destructor of the Class */
-   virtual ~Vertex();
-
-   int getId() const { return id_; }
-   cv::Point3f getPoint() const { return p_; }
-
-
-private:
-  /** The identifier number of the vertex */
-  int id_;
-  /** The 3D coordinates of the vertex */
-  cv::Point3f p_;
-};
-
-
-
-// --------------------------------------------------- //
 //                 TRIANGLE CLASS                      //
 // --------------------------------------------------- //
 
@@ -67,29 +28,27 @@ public:
    * @return
    *
    */
-  explicit Triangle(int id, Vertex V0, Vertex V1, Vertex V2);
+  explicit Triangle(int id, cv::Point3f V0, cv::Point3f V1, cv::Point3f V2);
 
   /** The default destructor of the Class */
   virtual ~Triangle();
 
-  /**
-   * Set the identification number of the triangle
-   *
-   * @param id - The identification number.
-   * @return
-   *
-   */
-  void setTriangleID(int id) { id_ = id; }
-  Vertex getV0() { return v0_; }
-  Vertex getV1() { return v1_; }
-  Vertex getV2() { return v2_; }
+
+  cv::Point3f getV0() const { return v0_; }
+  cv::Point3f getV1() const { return v1_; }
+  cv::Point3f getV2() const { return v2_; }
 
 private:
   /** The identifier number of the triangle */
   int id_;
   /** The three vertices that composes the triangle */
-  Vertex v0_, v1_, v2_;
+  cv::Point3f v0_, v1_, v2_;
 };
+
+
+// --------------------------------------------------- //
+//                     RAY CLASS                       //
+// --------------------------------------------------- //
 
 class Ray {
 public:
@@ -122,33 +81,6 @@ public:
   virtual ~ObjectMesh();
 
   /**
-   * Set the identification number of the object mesh
-   *
-   * @param id - The identification number.
-   * @return
-   *
-   */
-  void setMeshID(int id) { id_ = id; }
-
-  /**
-   * Reset the vertex list iterator
-   *
-   * @param
-   * @return
-   *
-   */
-  void resetVertexIterator() { vertex_iterator_ = 0; }
-
-  /**
-   * Increment one position the vertex iterator
-   *
-   * @param
-   * @return
-   *
-   */
-  void incrVertexIterator();
-
-  /**
    * Load a CSV file and fill the object mesh
    *
    * @param path_file - The path into the computer of the mesh file.
@@ -173,17 +105,9 @@ public:
     * @return - A vertex given a postion in the list
     *
     */
-  Vertex getVertex(int pos) const { return list_vertex_.at(pos); }
+  cv::Point3f getVertex(int pos) const { return list_vertex_[pos]; }
 
-  /**
-    * Get the current vertex position in list_vertex_
-    *
-    * @param
-    * @return - The current position in list_vertex
-    *
-    */
-  int getVertexIter() const { return vertex_iterator_; }
-  std::vector<std::vector<int> > getTrianglesList() const { return map_list_triangles_; }
+  std::vector<std::vector<int> > getTrianglesList() const { return list_triangles_; }
 
 private:
   /** The identification number of the mesh */
@@ -192,12 +116,10 @@ private:
   int num_vertexs_;
   /** The current number of triangles in the mesh */
   int num_triangles_;
-  /** The current position of vertex list */
-  int vertex_iterator_;
   /* The list of triangles of the mesh */
-  std::vector<Vertex> list_vertex_;
+  std::vector<cv::Point3f> list_vertex_;
   /* The list of triangles of the mesh */
-  std::vector<std::vector<int> > map_list_triangles_;
+  std::vector<std::vector<int> > list_triangles_;
 };
 
 #endif /* OBJECTMESH_H_ */

@@ -1,9 +1,8 @@
 #ifndef CSVREADER_H
 #define	CSVREADER_H
 
+#include <iostream>
 #include <fstream>
-#include <string>
-#include <vector>
 
 #include <opencv2/core/core.hpp>
 #include "ObjectMesh.h"
@@ -21,15 +20,7 @@ public:
   * @param separator - The separator character between words per line
   * @return
   */
-  CsvReader(const string &path, const char &separator = ' ');
-
-  /**
-  * Read a plane text file with 3D coordinates numbers per point
-  *
-  * @param list_pts - The container of the points list of the mesh
-  * @return
-  */
-  void read(vector<Point3f> &list_pts);
+  CsvReader(const std::string &path, const char &separator = ' ');
 
   /**
   * Read a plane text file with .ply format
@@ -38,7 +29,7 @@ public:
   * @param list_triangle - The container of the triangles list of the mesh
   * @return
   */
-  void readPLY(vector<Vertex> &list_vertex, vector<vector<int> > &list_triangles);
+  void readPLY(std::vector<cv::Point3f> &list_vertex, std::vector<std::vector<int> > &list_triangles);
 
 private:
   /** The current stream file for the reader */

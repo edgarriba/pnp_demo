@@ -1,5 +1,5 @@
 //============================================================================
-// Name        : epnp_demo.cpp
+// Name        : main.cpp
 // Author      : Edgar Riba
 // Version     : 0.1
 // Copyright   : Your copyright notice
@@ -7,7 +7,6 @@
 //============================================================================
 
 #include <iostream>
-#include <sstream>
 
 #include <assert.h>
 #include <boost/lexical_cast.hpp>
@@ -19,9 +18,6 @@
 #include "Utils.h"
 
 #include "opencv2/core/core.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/calib3d/calib3d.hpp"
 
 
   /*
@@ -30,15 +26,7 @@
   std::string img_path = "../Data/resized_IMG_3875.JPG";
   std::string ply_read_path = "../Data/box.ply";
 
-
-  /*
-   * Set up windows std::strings
-   */
-  std::string str_winame_model_registration = "MODEL REGISTRATION";
-  std::string str_winame_check_points = "CHECK POINTS";
-  std::string str_winame_video_stream = "LIVE DEMO";
-
-
+  // Boolean the know if the registration it's done
   bool end_registration = false;
 
   /*
@@ -47,7 +35,10 @@
   double f = 55;
   double sx = 22.3, sy = 14.9;
   double width = 718, height = 480;
-  double params[] = {width*f/sx,height*f/sy,width/2,height/2}; // fx, fy, cx, cy
+  double params[] = { width*f/sx,   // fx
+                      height*f/sy,  // fy
+                      width/2,      // cx
+                      height/2};    // cy
 
   /*
    * Set up some basic colors
@@ -59,6 +50,7 @@
   /*
    * CREATE MODEL REGISTRATION OBJECT
    * CREATE OBJECT MESH
+   * CREATE OBJECT MODEL
    * CREATE PNP OBJECT
    */
   ModelRegistration modelReg;
@@ -73,30 +65,29 @@
  *  Ask next point to register after right click
  *
  */
+
+
+  // Setup the points to register in the image
+  int n = 7;
+  int pts[] = {1, 2, 3, 5, 6, 7, 8};
+
+
 static void onMouseModelRegistration( int event, int x, int y, int, void* )
 {
   if  ( event == cv::EVENT_LBUTTONUP )
   {
-      int vertex_it = objMesh.getVertexIter();
-      bool is_registrable = modelReg.is_registrable(vertex_it);
+      int n_regist = modelReg.getNumRegist();
+      int n_vertex = pts[n_regist];
 
       cv::Point2f point_2d = cv::Point2f(x,y);
-      cv::Point3f point_3d = objMesh.getVertex(vertex_it).getPoint();
+      cv::Point3f point_3d = objMesh.getVertex(n_vertex-1);
 
+      bool is_registrable = modelReg.is_registrable();
       if (is_registrable)
       {
-        modelReg.registerPoint(std::make_pair(point_2d, point_3d));
+        modelReg.registerPoint(point_2d, point_3d);
+        if( modelReg.getNumRegist() == modelReg.getNumMax() ) end_registration = true;
       }
-      else if (!end_registration)
-      {
-        modelReg.registerPoint(std::make_pair(point_2d, point_3d));
-        end_registration = true;
-      }
-      objMesh.incrVertexIterator();
-  }
-  else if  ( event == cv::EVENT_RBUTTONUP )
-  {
-      objMesh.incrVertexIterator();
   }
 }
 
@@ -121,15 +112,15 @@ int main(int, char**)
    *
    */
 
-  objMesh.setMeshID(0);
+  // Set the mesh id and load the *.ply file
   objMesh.loadMesh(ply_read_path);
 
   // Create & Open Main Window
-  cv::namedWindow(str_winame_model_registration, cv::WINDOW_KEEPRATIO);
+  cv::namedWindow("MODEL REGISTRATION", cv::WINDOW_KEEPRATIO);
 
 
   // Set up the mouse events
-  cv::setMouseCallback(str_winame_model_registration, onMouseModelRegistration, 0 );
+  cv::setMouseCallback("MODEL REGISTRATION", onMouseModelRegistration, 0 );
 
 
   /*
@@ -160,40 +151,46 @@ int main(int, char**)
     *
     */
 
-  modelReg.setNumMax(objMesh.getNumVertices());
+  // Get the total number of vertices of the mesh
+  int num_registrations = n;
+  modelReg.setNumMax(num_registrations);
 
   std::cout << "Click the box corners ..." << std::endl;
   std::cout << "Waiting ..." << std::endl;
 
 
-  while ( waitKey(30) < 0 )
+  while ( cv::waitKey(30) < 0 )
   {
     // Refresh debug image
     img_vis = img_in.clone();
 
-    // Draw coordinates axes
-    //draw3DCoordinateAxes(img_vis, red);
+    // Current registered points
+    std::vector<cv::Point2f> list_2d_points = modelReg.get_2d_points();
+    std::vector<cv::Point3f> list_3d_points = modelReg.get_3d_points();
 
     // Draw points
-    drawPoints(img_vis, &modelReg, red);
+    drawPoints(img_vis, list_2d_points, list_3d_points, red);
 
     if (!end_registration)
     {
       // Draw debug text
-      cv::Point3f current_point_3d = objMesh.getVertex(objMesh.getVertexIter()).getPoint();
+      int n_regist = modelReg.getNumRegist();
+      int n_vertex = pts[n_regist];
+      cv::Point3f current_point_3d = objMesh.getVertex(n_vertex-1);
+
       drawQuestion(img_vis, current_point_3d, green);
-      drawCounter(img_vis, modelReg.getNum(), modelReg.getNumMax(), red);
+      drawCounter(img_vis, modelReg.getNumRegist(), modelReg.getNumMax(), red);
     }
     else
-     {
-       // Draw debug text
-       drawText(img_vis, "END REGISTRATION", green);
-       drawCounter(img_vis, modelReg.getNum(), modelReg.getNumMax(), green);
-       break;
-     }
+    {
+      // Draw debug text
+      drawText(img_vis, "END REGISTRATION", green);
+      drawCounter(img_vis, modelReg.getNumRegist(), modelReg.getNumMax(), green);
+      break;
+    }
 
     // Show the image
-    imshow(str_winame_model_registration, img_vis);
+    cv::imshow("MODEL REGISTRATION", img_vis);
   }
 
 
@@ -209,14 +206,17 @@ int main(int, char**)
   //int flags = CV_P3P;
   int flags = CV_EPNP;
 
-  std::vector<pair<int,pair<cv::Point2f,cv::Point3f> > > list_correspondences = modelReg.getAllCorrespondences();
-  if ( pnpProb.estimatePose(list_correspondences, flags) )
+  std::vector<cv::Point2f> list_2d_points = modelReg.get_2d_points();
+  std::vector<cv::Point3f> list_3d_points = modelReg.get_3d_points();
+
+  bool is_correspondence = pnpProb.estimatePose(list_2d_points, list_3d_points, flags);
+  if ( is_correspondence )
   {
     std::cout << "Correspondence found" << std::endl;
 
-    // Compute 2D points to verify the algorithm
-    std::vector<cv::Point2f> pts_2D_verified = pnpProb.verify_points(&objMesh);
-    draw2DPoints(img_vis, pts_2D_verified, green);
+    // Compute all the 2D points of the mesh to verify the algorithm
+    std::vector<cv::Point2f> pts_2d_ground_truth = pnpProb.verify_points(&objMesh);
+    draw2DPoints(img_vis, pts_2d_ground_truth, green);
 
     // TODO: quality verification
     //p.writeUVfile(csv_write_path);
@@ -226,13 +226,13 @@ int main(int, char**)
   }
 
   // Show the images
-  imshow(str_winame_model_registration, img_vis);
+  cv::imshow("MODEL REGISTRATION", img_vis);
 
   // Show image until ESC pressed
-  waitKey(0);
+  cv::waitKey(0);
 
   // Close and Destroy Main Window
-  destroyWindow(str_winame_model_registration);
+  cv::destroyWindow("MODEL REGISTRATION");
 
 
    /*
@@ -242,7 +242,7 @@ int main(int, char**)
     */
 
   // Create & Open Main Window
-  cv::namedWindow(str_winame_check_points, cv::WINDOW_KEEPRATIO);
+  cv::namedWindow("CHECK POINTS", cv::WINDOW_KEEPRATIO);
 
   // Containers for keypoints and descriptors
   std::vector<cv::KeyPoint> keypoints;
@@ -251,7 +251,7 @@ int main(int, char**)
   // Compute keypoints and descriptors
   computeKeyPoints(img_in.clone(), keypoints, descriptors);
 
-  // Check if keypoints are on the surface or not
+  // Check if keypoints are on the surface
   for (unsigned int i = 0; i < keypoints.size(); ++i) {
     cv::Point2f point_2d(keypoints[i].pt);
     cv::Point3f point_3d;
@@ -266,8 +266,6 @@ int main(int, char**)
         objModel.add_outlier(point_2d);
     }
   }
-
-  std::cout << "Size descriptors: " << objModel.get_numDescriptors()  << std::endl;
 
 
   // Show keypoints
@@ -297,12 +295,12 @@ int main(int, char**)
     draw2DPoints(img_in, points_out, red);
 
     // Show the images
-    cv::imshow(str_winame_check_points, img_in);
+    cv::imshow("CHECK POINTS", img_in);
 
   }
 
   // Close and Destroy Main Window
-  cv::destroyWindow(str_winame_check_points);
+  cv::destroyWindow("CHECK POINTS");
 
 
   /*
@@ -312,9 +310,9 @@ int main(int, char**)
   */
 
   // Create & Open Main Window
-  cv::namedWindow(str_winame_video_stream, cv::WINDOW_KEEPRATIO);
+  cv::namedWindow("LIVE DEMO", cv::WINDOW_KEEPRATIO);
 
-  cv::VideoCapture cap(0); // open the default camera
+  cv::VideoCapture cap(1); // open the default camera
   if(!cap.isOpened())  // check if we succeeded
       return -1;
 
@@ -325,7 +323,7 @@ int main(int, char**)
   int edgeThreshold = 31;
   int firstLevel = 0;
   int WTA_K = 2;
-  int scoreType = ORB::HARRIS_SCORE;
+  int scoreType = cv::ORB::HARRIS_SCORE;
   int patchSize = 31;
 
   cv::ORB orb(nfeatures, scaleFactor, nlevels, edgeThreshold, firstLevel, WTA_K, scoreType, patchSize);
@@ -345,13 +343,13 @@ int main(int, char**)
       orb.compute( frame, keypoints, descriptors );
 
       cv::DrawMatchesFlags flag;
-      cv::drawKeypoints(frame, keypoints, frame, blue, flag.DRAW_RICH_KEYPOINTS);
+      cv::drawKeypoints(frame, keypoints, frame, blue, flag.DEFAULT);
 
-      cv::imshow(str_winame_video_stream, frame);
+      cv::imshow("LIVE DEMO", frame);
   }
 
   // the camera will be deinitialized autocv::Matically in VideoCapture destructor
-  cv::destroyWindow(str_winame_video_stream);
+  cv::destroyWindow("LIVE DEMO");
 
 
   std::cout << "GOODBYE ..." << std::endl;

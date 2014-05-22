@@ -16,32 +16,24 @@
 #include "ObjectMesh.h"
 #include "ModelRegistration.h"
 
-using namespace cv;
-using namespace std;
-
 class PnPProblem
 {
+
+public:
+  explicit PnPProblem(const double param[]);  // custom constructor
+  virtual ~PnPProblem();
+
+  bool estimatePose(const std::vector<cv::Point2f> &points_2d, const std::vector<cv::Point3f> &points_3d, int flags);
+  bool backproject2DPoint(const ObjectMesh *objMesh, const cv::Point2f &point2d, cv::Point3f &point3d);
+  bool intersect_MollerTrumbore(Ray &R, Triangle &T, double *out);
+  std::vector<cv::Point2f> verify_points(ObjectMesh *objMesh);
+  cv::Point2f backproject3DPoint(const cv::Point3f &point);
+
+private:
   cv::Mat _A_matrix;
   cv::Mat _R_matrix;
   cv::Mat _t_matrix;
   cv::Mat _P_matrix;
-public:
-  PnPProblem();                                    // default constructor
-  PnPProblem(const double param[]);  // custom constructor
-  PnPProblem(const PnPProblem& P);                // copy constructor
-  virtual ~PnPProblem();
-
-  cv::Mat get_Amatrix() const { return _A_matrix; }
-  void set_Amatrix(const double params[]);
-
-  bool estimatePose(const std::vector<std::pair<int, std::pair<cv::Point2f, cv::Point3f> > > &correspondences, int flags = CV_EPNP);
-
-  bool backproject2DPoint(const ObjectMesh *objMesh, const cv::Point2f &point2d, cv::Point3f &point3d);
-
-  std::vector<cv::Point2f> verify_points(ObjectMesh *objMesh);
-  cv::Point2f backproject3DPoint(const cv::Point3f &point);
-  bool intersect_MollerTrumbore(Ray &R, Triangle &T, double *out);
-
 };
 
 #endif /* PNPPROBLEM_H_ */

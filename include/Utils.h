@@ -29,7 +29,7 @@ void drawPoints(cv::Mat image, std::vector<cv::Point2f> &list_points_2d, std::ve
 void draw2DPoints(cv::Mat image, std::vector<cv::Point2f> &list_points, cv::Scalar color);
 
 // Draw the object mesh
-void drawObjectMesh(cv::Mat image, const ObjectMesh *objMesh, PnPProblem *pnpProblem, cv::Scalar color);
+void drawObjectMesh(cv::Mat image, const Mesh *mesh, PnPProblem *pnpProblem, cv::Scalar color);
 
 // Draw an arrow into the image
 void drawArrow(cv::Mat image, cv::Point2i p, cv::Point2i q, cv::Scalar color, int arrowMagnitude = 9, int thickness=1, int line_type=8, int shift=0);

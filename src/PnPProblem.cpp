@@ -9,7 +9,7 @@
 #include <sstream>
 
 #include "PnPProblem.h"
-#include "ObjectMesh.h"
+#include "Mesh.h"
 
 #include <opencv2/calib3d/calib3d.hpp>
 
@@ -119,7 +119,7 @@ bool PnPProblem::estimatePose(const std::vector<cv::Point2f> &list_points2d, con
 }
 
 // Given the mesh, backproject the 3D points to 2D to verify the pose estimation
-std::vector<cv::Point2f> PnPProblem::verify_points(ObjectMesh *mesh)
+std::vector<cv::Point2f> PnPProblem::verify_points(Mesh *mesh)
 {
   std::vector<cv::Point2f> verified_points_2d;
   for( int i = 0; i < mesh->getNumVertices(); i++)
@@ -157,7 +157,7 @@ cv::Point2f PnPProblem::backproject3DPoint(const cv::Point3f &point3d)
 }
 
 // Back project a 2D point to 3D and returns if it's on the object surface
-bool PnPProblem::backproject2DPoint(const ObjectMesh *mesh, const cv::Point2f &point2d, cv::Point3f &point3d)
+bool PnPProblem::backproject2DPoint(const Mesh *mesh, const cv::Point2f &point2d, cv::Point3f &point3d)
 {
   // Triangles list of the object mesh
   std::vector<std::vector<int> > triangles_list = mesh->getTrianglesList();

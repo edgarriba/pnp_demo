@@ -5,8 +5,8 @@
  *      Author: edgar
  */
 
-#ifndef OBJECTMESH_H_
-#define OBJECTMESH_H_
+#ifndef MESH_H_
+#define MESH_H_
 
 #include <iostream>
 #include <opencv2/core.hpp>
@@ -57,12 +57,12 @@ private:
 //                OBJECT MESH CLASS                    //
 // --------------------------------------------------- //
 
-class ObjectMesh
+class Mesh
 {
 public:
 
-  ObjectMesh();
-  virtual ~ObjectMesh();
+  Mesh();
+  virtual ~Mesh();
 
   std::vector<std::vector<int> > getTrianglesList() const { return list_triangles_; }
   cv::Point3f getVertex(int pos) const { return list_vertex_[pos]; }

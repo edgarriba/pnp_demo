@@ -12,8 +12,8 @@
 #include <boost/lexical_cast.hpp>
 
 #include "PnPProblem.h"
-#include "ObjectMesh.h"
-#include "ObjectModel.h"
+#include "Mesh.h"
+#include "Model.h"
 #include "ModelRegistration.h"
 #include "Utils.h"
 
@@ -74,8 +74,8 @@
    * CREATE PNP OBJECT
    */
   ModelRegistration registration;
-  ObjectMesh mesh;
-  ObjectModel model;
+  Mesh mesh;
+  Model model;
   PnPProblem pnp(params);
 
 
@@ -355,9 +355,11 @@ int main(int, char**)
         keypoints_match.push_back(kp);
       }
 
+      //std::cout << "KP match: " << keypoints_match.size() << std::endl;
+
       cv::DrawMatchesFlags flag;
-      cv::drawKeypoints(frame, keypoints_match, frame, blue, flag.DEFAULT);
       cv::drawKeypoints(frame, keypoints_scene, frame, red, flag.DEFAULT);
+      //cv::drawKeypoints(frame, keypoints_match, frame, blue, flag.DEFAULT);
       //cv::drawMatches(img_in, keypoints_model, frame, keypoints_vis, matches, frame);
 
 

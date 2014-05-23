@@ -13,7 +13,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 
-#include "ObjectMesh.h"
+#include "Mesh.h"
 #include "ModelRegistration.h"
 
 class PnPProblem
@@ -24,9 +24,9 @@ public:
   virtual ~PnPProblem();
 
   bool estimatePose(const std::vector<cv::Point2f> &list_points2d, const std::vector<cv::Point3f> &list_points3d, int flags);
-  bool backproject2DPoint(const ObjectMesh *mesh, const cv::Point2f &point2d, cv::Point3f &point3d);
+  bool backproject2DPoint(const Mesh *mesh, const cv::Point2f &point2d, cv::Point3f &point3d);
   bool intersect_MollerTrumbore(Ray &R, Triangle &T, double *out);
-  std::vector<cv::Point2f> verify_points(ObjectMesh *mesh);
+  std::vector<cv::Point2f> verify_points(Mesh *mesh);
   cv::Point2f backproject3DPoint(const cv::Point3f &point3d);
 
 private:

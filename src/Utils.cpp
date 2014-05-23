@@ -136,16 +136,16 @@ void draw3DCoordinateAxes(cv::Mat image, cv::Scalar color)
 }
 
 // Draw the object mesh
-void drawObjectMesh(cv::Mat image, const ObjectMesh *objMesh, PnPProblem *pnpProblem, cv::Scalar color)
+void drawObjectMesh(cv::Mat image, const Mesh *mesh, PnPProblem *pnpProblem, cv::Scalar color)
 {
-  std::vector<std::vector<int> > list_triangles = objMesh->getTrianglesList();
+  std::vector<std::vector<int> > list_triangles = mesh->getTrianglesList();
   for( size_t i = 0; i < list_triangles.size(); i++)
   {
     std::vector<int> tmp_triangle = list_triangles.at(i);
 
-    cv::Point3f point_3d_0 = objMesh->getVertex(tmp_triangle[0]);
-    cv::Point3f point_3d_1 = objMesh->getVertex(tmp_triangle[1]);
-    cv::Point3f point_3d_2 = objMesh->getVertex(tmp_triangle[2]);
+    cv::Point3f point_3d_0 = mesh->getVertex(tmp_triangle[0]);
+    cv::Point3f point_3d_1 = mesh->getVertex(tmp_triangle[1]);
+    cv::Point3f point_3d_2 = mesh->getVertex(tmp_triangle[2]);
 
     cv::Point2f point_2d_0 = pnpProblem->backproject3DPoint(point_3d_0);
     cv::Point2f point_2d_1 = pnpProblem->backproject3DPoint(point_3d_1);

@@ -5,7 +5,7 @@
 #include <fstream>
 
 #include <opencv2/core/core.hpp>
-#include "ObjectMesh.h"
+#include "Mesh.h"
 
 using namespace std;
 using namespace cv;

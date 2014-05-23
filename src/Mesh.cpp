@@ -1,11 +1,11 @@
 /*
- * ObjectMesh.cpp
+ * Mesh.cpp
  *
  *  Created on: Apr 9, 2014
  *      Author: edgar
  */
 
-#include "ObjectMesh.h"
+#include "Mesh.h"
 #include "CsvReader.h"
 
 
@@ -47,7 +47,7 @@ Ray::~Ray()
 // --------------------------------------------------- //
 
 /** The default constructor of the ObjectMesh Class */
-ObjectMesh::ObjectMesh() : list_vertex_(0) , list_triangles_(0)
+Mesh::Mesh() : list_vertex_(0) , list_triangles_(0)
 {
   id_ = 0;
   num_vertexs_ = 0;
@@ -55,14 +55,14 @@ ObjectMesh::ObjectMesh() : list_vertex_(0) , list_triangles_(0)
 }
 
 /** The default destructor of the ObjectMesh Class */
-ObjectMesh::~ObjectMesh()
+Mesh::~Mesh()
 {
   // TODO Auto-generated destructor stub
 }
 
 
 /** Load a CSV file and fill the object mesh */
-void ObjectMesh::load(const std::string path) {
+void Mesh::load(const std::string path) {
 
   // Create the reader
   CsvReader csvReader(path);

@@ -1,21 +1,21 @@
 /*
- * ObjectModel.h
+ * Model.h
  *
  *  Created on: Apr 9, 2014
  *      Author: edgar
  */
 
-#ifndef OBJECTMODEL_H_
-#define OBJECTMODEL_H_
+#ifndef MODEL_H_
+#define MODEL_H_
 
 #include <iostream>
 #include <opencv2/core.hpp>
 
-class ObjectModel
+class Model
 {
 public:
-  ObjectModel();
-  virtual ~ObjectModel();
+  Model();
+  virtual ~Model();
 
   std::vector<cv::Point2f> get_points2d_in() const { return list_points2d_in_; }
   std::vector<cv::Point2f> get_points2d_out() const { return list_points2d_out_; }

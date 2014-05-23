@@ -14,65 +14,19 @@
 class ModelRegistration
 {
 public:
-  /**
-  * The default constructor of the ModelRegistration Class
-  *
-  * @param
-  * @return
-  *
-  */
-  ModelRegistration();
 
-  /** The default destructor of the Class */
+  ModelRegistration();
   virtual ~ModelRegistration();
 
-  /**
-   * Add a point from the image to list_uv_points
-   *
-   * @param point - The 2D point to add to the list
-   * @return
-   *
-   */
-  void registerPoint(const cv::Point2f &point2d, const cv::Point3f &point3d)
-  {
-    // add correspondence at the end of the vector
-     list_points2d_.push_back(point2d);
-     list_points3d_.push_back(point3d);
-     n_registrations_++;
-  }
-
-  /**
-   * Set the number of points to register the model
-   *
-   * @param n - The total number of points to register
-   * @return
-   *
-   */
   void setNumMax(int n) { max_registrations_ = n; }
 
-  /**
-  * Get the number of points to register
-  *
-  * @param
-  * @return - The total number of points to register the model
-  *
-  */
+  std::vector<cv::Point2f> get_points2d() const { return list_points2d_; }
+  std::vector<cv::Point3f> get_points3d() const { return list_points3d_; }
   int getNumMax() const { return max_registrations_; }
-
-  /**
-  * Get the current number of registered points
-  *
-  * @param
-  * @return - The current number of registered points
-  *
-  */
   int getNumRegist() const { return n_registrations_; }
 
-  std::vector<cv::Point2f> get_2d_points() const { return list_points2d_; }
-  std::vector<cv::Point3f> get_3d_points() const { return list_points3d_; }
-
   bool is_registrable() const { return (n_registrations_ < max_registrations_); }
-
+  void registerPoint(const cv::Point2f &point2d, const cv::Point3f &point3d);
 
 private:
 /** The current number of registered points */

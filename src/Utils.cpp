@@ -135,6 +135,7 @@ void draw3DCoordinateAxes(cv::Mat image, cv::Scalar color)
 
 }
 
+// Draw the object mesh
 void drawObjectMesh(cv::Mat image, const ObjectMesh *objMesh, PnPProblem *pnpProblem, cv::Scalar color)
 {
   std::vector<std::vector<int> > list_triangles = objMesh->getTrianglesList();
@@ -156,8 +157,7 @@ void drawObjectMesh(cv::Mat image, const ObjectMesh *objMesh, PnPProblem *pnpPro
   }
 }
 
-
-// Compute key points and draw it
+// Compute the ORB keypoints and descriptors of a given image
 void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors)
 {
 

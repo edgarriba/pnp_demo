@@ -62,7 +62,7 @@ ObjectMesh::~ObjectMesh()
 
 
 /** Load a CSV file and fill the object mesh */
-void ObjectMesh::loadMesh(const std::string path) {
+void ObjectMesh::load(const std::string path) {
 
   // Create the reader
   CsvReader csvReader(path);

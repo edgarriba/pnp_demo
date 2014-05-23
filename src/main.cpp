@@ -17,20 +17,22 @@
 #include "ModelRegistration.h"
 #include "Utils.h"
 
-#include "opencv2/core/core.hpp"
+#include <opencv2/core/core.hpp>
+#include <opencv2/nonfree/features2d.hpp>
 
 
   /*
    * Set up the images paths
    */
   std::string img_path = "../Data/resized_IMG_3875.JPG";
+  //std::string img_path = "../Data/test.jpg";
   std::string ply_read_path = "../Data/box.ply";
 
   // Boolean the know if the registration it's done
   bool end_registration = false;
 
   /*
-   * Set up the intrinsic camera parameters
+   * Set up the intrinsic camera parameters: CANON
    */
   double f = 55;
   double sx = 22.3, sy = 14.9;
@@ -39,6 +41,24 @@
                       height*f/sy,  // fy
                       width/2,      // cx
                       height/2};    // cy
+
+
+  // Setup the points to register in the image
+  // In the order of the *.ply file and starting at 1
+  int n = 7;
+  int pts[] = {1, 2, 3, 5, 6, 7, 8};
+
+
+  /*
+    * Set up the intrinsic camera parameters: LOGITECH QUICK PRO 5000
+    */
+   /*double f = 57;
+   double sx = 22.3, sy = 14.9;
+   double width = 640, height = 480;
+   double params[] = { width*f/sx,   // fx
+                       height*f/sy,  // fy
+                       width/2,      // cx
+                       height/2};    // cy*/
 
   /*
    * Set up some basic colors
@@ -53,40 +73,28 @@
    * CREATE OBJECT MODEL
    * CREATE PNP OBJECT
    */
-  ModelRegistration modelReg;
-  ObjectMesh objMesh;
-  ObjectModel objModel;
-  PnPProblem pnpProb(params);
+  ModelRegistration registration;
+  ObjectMesh mesh;
+  ObjectModel model;
+  PnPProblem pnp(params);
 
 
-/*
- *  MODEL REGISTRATION: mouse events callback
- *  Register a point after left button click
- *  Ask next point to register after right click
- *
- */
-
-
-  // Setup the points to register in the image
-  int n = 7;
-  int pts[] = {1, 2, 3, 5, 6, 7, 8};
-
-
+// Mouse events for model registration
 static void onMouseModelRegistration( int event, int x, int y, int, void* )
 {
   if  ( event == cv::EVENT_LBUTTONUP )
   {
-      int n_regist = modelReg.getNumRegist();
+      int n_regist = registration.getNumRegist();
       int n_vertex = pts[n_regist];
 
       cv::Point2f point_2d = cv::Point2f(x,y);
-      cv::Point3f point_3d = objMesh.getVertex(n_vertex-1);
+      cv::Point3f point_3d = mesh.getVertex(n_vertex-1);
 
-      bool is_registrable = modelReg.is_registrable();
+      bool is_registrable = registration.is_registrable();
       if (is_registrable)
       {
-        modelReg.registerPoint(point_2d, point_3d);
-        if( modelReg.getNumRegist() == modelReg.getNumMax() ) end_registration = true;
+        registration.registerPoint(point_2d, point_3d);
+        if( registration.getNumRegist() == registration.getNumMax() ) end_registration = true;
       }
   }
 }
@@ -100,38 +108,19 @@ static void onMouseModelRegistration( int event, int x, int y, int, void* )
 int main(int, char**)
 {
 
-  std::cout << "!!!Hello Computer Vision!!!" << std::endl; // prints !!!Hello World!!!
+  std::cout << "!!!Hello Google Summer of Code!!!" << std::endl; // prints !!!Hello World!!!
 
+  // load a mesh given the *.ply file path
+  mesh.load(ply_read_path);
 
-  /*
-   *  CREATE & OPEN MESH OBJECT
-   *
-   *  1) Create mesh object
-   *  2) Set identification number
-   *  3) Load the mesh file (*.ply)
-   *
-   */
-
-  // Set the mesh id and load the *.ply file
-  objMesh.loadMesh(ply_read_path);
-
-  // Create & Open Main Window
+  // Create & Open Window
   cv::namedWindow("MODEL REGISTRATION", cv::WINDOW_KEEPRATIO);
 
 
   // Set up the mouse events
   cv::setMouseCallback("MODEL REGISTRATION", onMouseModelRegistration, 0 );
 
-
-  /*
-   *  CREATE & OPEN INPUT IMAGE
-   *
-   *  1) Read the input image from a given path
-   *  2) Create an image for debug some info
-   *  3) Check if the image is not empty
-   *
-   */
-
+  // Open the image to register
   cv::Mat img_in = cv::imread(img_path, cv::IMREAD_COLOR);
   cv::Mat img_vis = img_in.clone();
 
@@ -140,52 +129,43 @@ int main(int, char**)
     return -1;
   }
 
-
-   /*
-    *  MODEL REGISTRATION
-    *
-    *  1) Set max number of registration points
-    *  2) Show the image until the points are not added
-    *  3) Show the image until the ESC key is pressed
-    *  4) Draw some debug info into the image
-    *
-    */
-
-  // Get the total number of vertices of the mesh
+  // Set the number of points to register
   int num_registrations = n;
-  modelReg.setNumMax(num_registrations);
+  registration.setNumMax(num_registrations);
 
   std::cout << "Click the box corners ..." << std::endl;
   std::cout << "Waiting ..." << std::endl;
 
-
+  // Loop until all the points are registered
   while ( cv::waitKey(30) < 0 )
   {
     // Refresh debug image
     img_vis = img_in.clone();
 
     // Current registered points
-    std::vector<cv::Point2f> list_2d_points = modelReg.get_2d_points();
-    std::vector<cv::Point3f> list_3d_points = modelReg.get_3d_points();
+    std::vector<cv::Point2f> list_points2d = registration.get_points2d();
+    std::vector<cv::Point3f> list_points3d = registration.get_points3d();
 
-    // Draw points
-    drawPoints(img_vis, list_2d_points, list_3d_points, red);
+    // Draw current registered points
+    drawPoints(img_vis, list_points2d, list_points3d, red);
 
+    // If the registration is not finished, draw which 3D point we have to register.
+    // If the registration is finished, breaks the loop.
     if (!end_registration)
     {
       // Draw debug text
-      int n_regist = modelReg.getNumRegist();
+      int n_regist = registration.getNumRegist();
       int n_vertex = pts[n_regist];
-      cv::Point3f current_point_3d = objMesh.getVertex(n_vertex-1);
+      cv::Point3f current_poin3d = mesh.getVertex(n_vertex-1);
 
-      drawQuestion(img_vis, current_point_3d, green);
-      drawCounter(img_vis, modelReg.getNumRegist(), modelReg.getNumMax(), red);
+      drawQuestion(img_vis, current_poin3d, green);
+      drawCounter(img_vis, registration.getNumRegist(), registration.getNumMax(), red);
     }
     else
     {
       // Draw debug text
       drawText(img_vis, "END REGISTRATION", green);
-      drawCounter(img_vis, modelReg.getNumRegist(), modelReg.getNumMax(), green);
+      drawCounter(img_vis, registration.getNumRegist(), registration.getNumMax(), green);
       break;
     }
 
@@ -206,16 +186,18 @@ int main(int, char**)
   //int flags = CV_P3P;
   int flags = CV_EPNP;
 
-  std::vector<cv::Point2f> list_2d_points = modelReg.get_2d_points();
-  std::vector<cv::Point3f> list_3d_points = modelReg.get_3d_points();
+  // The list of registered points
+  std::vector<cv::Point2f> list_points2d = registration.get_points2d();
+  std::vector<cv::Point3f> list_points3d = registration.get_points3d();
 
-  bool is_correspondence = pnpProb.estimatePose(list_2d_points, list_3d_points, flags);
+  // Estimate pose given the registered points
+  bool is_correspondence = pnp.estimatePose(list_points2d, list_points3d, flags);
   if ( is_correspondence )
   {
     std::cout << "Correspondence found" << std::endl;
 
-    // Compute all the 2D points of the mesh to verify the algorithm
-    std::vector<cv::Point2f> pts_2d_ground_truth = pnpProb.verify_points(&objMesh);
+    // Compute all the 2D points of the mesh to verify the algorithm and draw it
+    std::vector<cv::Point2f> pts_2d_ground_truth = pnp.verify_points(&mesh);
     draw2DPoints(img_vis, pts_2d_ground_truth, green);
 
     // TODO: quality verification
@@ -225,13 +207,13 @@ int main(int, char**)
     std::cout << "Correspondence not found" << std::endl;
   }
 
-  // Show the images
+  // Show the image
   cv::imshow("MODEL REGISTRATION", img_vis);
 
   // Show image until ESC pressed
   cv::waitKey(0);
 
-  // Close and Destroy Main Window
+  // Close and Destroy Window
   cv::destroyWindow("MODEL REGISTRATION");
 
 
@@ -241,78 +223,79 @@ int main(int, char**)
     *
     */
 
-  // Create & Open Main Window
+  // Create & Open Window
   cv::namedWindow("CHECK POINTS", cv::WINDOW_KEEPRATIO);
 
-  // Containers for keypoints and descriptors
-  std::vector<cv::KeyPoint> keypoints;
-  cv::Mat descriptors;
+  // Containers for keypoints and descriptors of the model
+  std::vector<cv::KeyPoint> keypoints_model;
+  cv::Mat descriptors_model;
 
   // Compute keypoints and descriptors
-  computeKeyPoints(img_in.clone(), keypoints, descriptors);
+  computeKeyPoints(img_in, keypoints_model, descriptors_model);
 
-  // Check if keypoints are on the surface
-  for (unsigned int i = 0; i < keypoints.size(); ++i) {
-    cv::Point2f point_2d(keypoints[i].pt);
-    cv::Point3f point_3d;
-    bool on_surface = pnpProb.backproject2DPoint(&objMesh, point_2d, point_3d);
+  // Check if keypoints are on the surface of the registration image and add to the model
+  for (unsigned int i = 0; i < keypoints_model.size(); ++i) {
+    cv::Point2f point2d(keypoints_model[i].pt);
+    cv::Point3f point3d;
+    bool on_surface = pnp.backproject2DPoint(&mesh, point2d, point3d);
     if (on_surface)
     {
-        objModel.add_correspondence(point_2d, point_3d);
-        objModel.add_descriptor(descriptors.row(i));
+        model.add_correspondence(point2d, point3d);
+        model.add_descriptor(descriptors_model.row(i));
     }
     else
     {
-        objModel.add_outlier(point_2d);
+        model.add_outlier(point2d);
     }
   }
 
 
-  // Show keypoints
+  // Draw keypoints
   while ( cv::waitKey(30) < 0 )
   {
     // Refresh debug image
     img_vis = img_in.clone();
 
-    std::vector<cv::Point2f> points_in = objModel.get_2d_points_in();
-    std::vector<cv::Point2f> points_out = objModel.get_2d_points_out();
+    // The list of the points2d of the model
+    std::vector<cv::Point2f> list_points_in = model.get_points2d_in();
+    std::vector<cv::Point2f> list_points_out = model.get_points2d_out();
 
     // Draw some debug text
-    std::string n = boost::lexical_cast< std::string >(points_in.size());
+    std::string n = boost::lexical_cast< std::string >(list_points_in.size());
     std::string text = "There are " + n + " inliers";
-    drawText(img_in, text, green);
+    drawText(img_vis, text, green);
 
     // Draw some debug text
-    n = boost::lexical_cast< std::string >(points_out.size());
+    n = boost::lexical_cast< std::string >(list_points_out.size());
     text = "There are " + n + " outliers";
-    drawText2(img_in, text, red);
+    drawText2(img_vis, text, red);
 
     // Draw the object mesh
-    drawObjectMesh(img_in, &objMesh, &pnpProb, blue);
+    drawObjectMesh(img_vis, &mesh, &pnp, blue);
 
-    // Draw found keypoints
-    draw2DPoints(img_in, points_in, green);
-    draw2DPoints(img_in, points_out, red);
+    // Draw found keypoints depending on if are or not on the surface
+    draw2DPoints(img_vis, list_points_in, green);
+    draw2DPoints(img_vis, list_points_out, red);
 
-    // Show the images
-    cv::imshow("CHECK POINTS", img_in);
+    // Show the image
+    cv::imshow("CHECK POINTS", img_vis);
 
   }
 
-  // Close and Destroy Main Window
+  // Close and Destroy Window
   cv::destroyWindow("CHECK POINTS");
 
 
   /*
-  *
+  * DEMO LIVE:
   * READ VIDEO STREAM AND COMPUTE KEYPOINTS
   *
   */
 
-  // Create & Open Main Window
+  // Create & Open Window
   cv::namedWindow("LIVE DEMO", cv::WINDOW_KEEPRATIO);
 
-  cv::VideoCapture cap(1); // open the default camera
+  cv::VideoCapture cap(0); // open the default camera
   if(!cap.isOpened())  // check if we succeeded
       return -1;
 
@@ -326,29 +309,67 @@ int main(int, char**)
   int scoreType = cv::ORB::HARRIS_SCORE;
   int patchSize = 31;
 
+  // Create ORB detector
   cv::ORB orb(nfeatures, scaleFactor, nlevels, edgeThreshold, firstLevel, WTA_K, scoreType, patchSize);
 
+  /* CREATE MATCHER
+   *
+   * For ORB descriptors it's used HORM_HAMMING
+   *
+   *  */
+
+  int normType = cv::NORM_HAMMING;
+  bool crossCheck = false;
+  cv::BFMatcher matcher(normType, crossCheck);
+
+  // Add the descriptor to the matcher and train
+  matcher.add(descriptors_model);
+  matcher.train();
+
+  // Loop videostream
   while( cv::waitKey(30) < 0)
   {
-      cv::Mat frame;
+      cv::Mat frame, frame_vis;
       cap >> frame; // get a new frame from camera
 
-      std::vector<cv::KeyPoint> keypoints;
-      cv::Mat descriptors;
+      std::vector<cv::KeyPoint> keypoints_scene, keypoints_match;
+      cv::Mat descriptors_scene;
 
       //-- Step 1: Calculate keypoints
-      orb.detect( frame, keypoints );
+      orb.detect( frame, keypoints_scene );
 
       //-- Step 2: Calculate descriptors (feature std::vectors)
-      orb.compute( frame, keypoints, descriptors );
+      orb.compute( frame, keypoints_scene, descriptors_scene );
+
+      // -- Step 3: Match the found keypoints
+      //std::vector<std::vector<cv::DMatch> > matches;
+      std::vector<std::vector<cv::DMatch> > matches;
+      //matcher.match(model_descriptors, scene_descriptors, matches);
+      matcher.knnMatch(descriptors_scene, matches, 10);
+
+      // Catch the matched keypoints to draw it
+      for(unsigned int i = 0; i < matches.size(); i++)
+      {
+        cv::DMatch match = matches[i][0];
+        cv::KeyPoint kp = keypoints_model[match.queryIdx];
+        keypoints_match.push_back(kp);
+      }
 
       cv::DrawMatchesFlags flag;
-      cv::drawKeypoints(frame, keypoints, frame, blue, flag.DEFAULT);
+      cv::drawKeypoints(frame, keypoints_match, frame, blue, flag.DEFAULT);
+      cv::drawKeypoints(frame, keypoints_scene, frame, red, flag.DEFAULT);
+      //cv::drawMatches(img_in, keypoints_model, frame, keypoints_vis, matches, frame);
+
+
+      // Draw some debug text
+      std::string n = boost::lexical_cast< std::string >(matches.size());
+      std::string text = "Found " + n + " matches";
+      drawText(frame, text, green);
 
       cv::imshow("LIVE DEMO", frame);
   }
 
-  // the camera will be deinitialized autocv::Matically in VideoCapture destructor
+  // Close and Destroy Window
   cv::destroyWindow("LIVE DEMO");
 
 

@@ -23,16 +23,20 @@ public:
   explicit PnPProblem(const double param[]);  // custom constructor
   virtual ~PnPProblem();
 
-  bool estimatePose(const std::vector<cv::Point2f> &points_2d, const std::vector<cv::Point3f> &points_3d, int flags);
-  bool backproject2DPoint(const ObjectMesh *objMesh, const cv::Point2f &point2d, cv::Point3f &point3d);
+  bool estimatePose(const std::vector<cv::Point2f> &list_points2d, const std::vector<cv::Point3f> &list_points3d, int flags);
+  bool backproject2DPoint(const ObjectMesh *mesh, const cv::Point2f &point2d, cv::Point3f &point3d);
   bool intersect_MollerTrumbore(Ray &R, Triangle &T, double *out);
-  std::vector<cv::Point2f> verify_points(ObjectMesh *objMesh);
-  cv::Point2f backproject3DPoint(const cv::Point3f &point);
+  std::vector<cv::Point2f> verify_points(ObjectMesh *mesh);
+  cv::Point2f backproject3DPoint(const cv::Point3f &point3d);
 
 private:
+  /** The calibration matrix */
   cv::Mat _A_matrix;
+  /** The computed rotation matrix */
   cv::Mat _R_matrix;
+  /** The computed translation matrix */
   cv::Mat _t_matrix;
+  /** The computed projection matrix */
   cv::Mat _P_matrix;
 };
 

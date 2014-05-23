@@ -9,8 +9,7 @@
 
 ObjectModel::ObjectModel() : list_points2d_in_(0), list_points2d_out_(0), list_points3d_in_(0)
 {
-  id_ = 0;
-  num_correspondences_ = 0;
+  n_correspondences_ = 0;
 }
 
 ObjectModel::~ObjectModel()
@@ -22,7 +21,7 @@ void ObjectModel::add_correspondence(const cv::Point2f &point2d, const cv::Point
 {
   list_points2d_in_.push_back(point2d);
   list_points3d_in_.push_back(point3d);
-  num_correspondences_++;
+  n_correspondences_++;
 }
 
 void ObjectModel::add_outlier(const cv::Point2f &point2d)

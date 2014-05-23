@@ -25,8 +25,10 @@ void drawCounter(cv::Mat image, int n, int n_max, cv::Scalar color);
 // Draw the points and the coordinates
 void drawPoints(cv::Mat image, std::vector<cv::Point2f> &list_points_2d, std::vector<cv::Point3f> &list_points_3d, cv::Scalar color);
 
+// Draw only the points
 void draw2DPoints(cv::Mat image, std::vector<cv::Point2f> &list_points, cv::Scalar color);
 
+// Draw the object mesh
 void drawObjectMesh(cv::Mat image, const ObjectMesh *objMesh, PnPProblem *pnpProblem, cv::Scalar color);
 
 // Draw an arrow into the image
@@ -38,6 +40,7 @@ void draw3DCoordinateAxes(cv::Mat image, cv::Scalar color);
 // Compute the 2D points with the esticv::Mated pose
 std::vector<cv::Point2f> verification_points(PnPProblem *p);
 
+// Compute the ORB keypoints and descriptors of a given image
 void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors);
 
 #endif /* UTILS_H_ */

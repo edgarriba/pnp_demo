@@ -42,7 +42,7 @@ cv::Point3f SUB(cv::Point3f v1, cv::Point3f v2)
 /* End functions for Möller–Trumbore intersection algorithm
  *  */
 
-// Function to get the nearest 3D point given a set of them
+// Function to get the nearest 3D point to the Ray origin
 cv::Point3f get_nearest_3D_point(std::vector<cv::Point3f> &points_list, cv::Point3f origin)
 {
   cv::Point3f p1 = points_list[0];
@@ -61,7 +61,8 @@ cv::Point3f get_nearest_3D_point(std::vector<cv::Point3f> &points_list, cv::Poin
   }
 }
 
-PnPProblem::PnPProblem(const double params[])  // custom constructor
+// Custom constructor given the intrinsic camera parameters
+PnPProblem::PnPProblem(const double params[])
 {
   _A_matrix = cv::Mat::zeros(3, 3, cv::DataType<double>::type);
   _R_matrix = cv::Mat::zeros(3, 3, cv::DataType<double>::type);
@@ -79,9 +80,9 @@ PnPProblem::~PnPProblem()
   // TODO Auto-generated destructor stub
 }
 
-bool PnPProblem::estimatePose(const std::vector<cv::Point2f> &points_2d, const std::vector<cv::Point3f> &points_3d, int flags)
+// Estimate the pose given a list of 2D/3D correspondences and the method to use
+bool PnPProblem::estimatePose(const std::vector<cv::Point2f> &list_points2d, const std::vector<cv::Point3f> &list_points3d, int flags)
 {
-
   cv::Mat distCoeffs = cv::Mat::zeros(4, 1, cv::DataType<double>::type);
   cv::Mat rvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
   cv::Mat tvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
@@ -90,7 +91,7 @@ bool PnPProblem::estimatePose(const std::vector<cv::Point2f> &points_2d, const s
   std::cout << "A = "<< std::endl << " "  << _A_matrix << std::endl << std::endl;
 
   // Pose estimation
-  bool correspondence = cv::solvePnP(points_3d, points_2d, _A_matrix, distCoeffs, rvec, tvec, useExtrinsicGuess, flags);
+  bool correspondence = cv::solvePnP(list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec, useExtrinsicGuess, flags);
 
   // Transforms Rotation Vector to Matrix
   Rodrigues(rvec,_R_matrix);
@@ -117,14 +118,15 @@ bool PnPProblem::estimatePose(const std::vector<cv::Point2f> &points_2d, const s
   return correspondence;
 }
 
-std::vector<cv::Point2f> PnPProblem::verify_points(ObjectMesh *objMesh)
+// Given the mesh, backproject the 3D points to 2D to verify the pose estimation
+std::vector<cv::Point2f> PnPProblem::verify_points(ObjectMesh *mesh)
 {
   std::vector<cv::Point2f> verified_points_2d;
-  for( int i = 0; i < objMesh->getNumVertices(); i++)
+  for( int i = 0; i < mesh->getNumVertices(); i++)
   {
-    cv::Point3f tmp_point_3d = objMesh->getVertex(i);
-    cv::Point2f tmp_computed_point_2d = this->backproject3DPoint(tmp_point_3d);
-    verified_points_2d.push_back(tmp_computed_point_2d);
+    cv::Point3f point3d = mesh->getVertex(i);
+    cv::Point2f point2d = this->backproject3DPoint(point3d);
+    verified_points_2d.push_back(point2d);
 
     /*cout << "Correspondence " << i << endl;;
     cout << "P 3D " << tmp_point_3d << endl;
@@ -134,9 +136,9 @@ std::vector<cv::Point2f> PnPProblem::verify_points(ObjectMesh *objMesh)
   return verified_points_2d;
 }
 
+// Backproject a 3D point to 2D using the estimated pose parameters
 cv::Point2f PnPProblem::backproject3DPoint(const cv::Point3f &point3d)
 {
-
   // Temporal 3d Point vector
   cv::Mat point3d_vec = cv::Mat::ones(4, 1, cv::DataType<double>::type);
   point3d_vec.at<double>(0) = point3d.x;
@@ -152,14 +154,13 @@ cv::Point2f PnPProblem::backproject3DPoint(const cv::Point3f &point3d)
   point2d.y = tmp_uv.at<double>(1) / tmp_uv.at<double>(2);
 
   return point2d;
-
 }
 
-bool PnPProblem::backproject2DPoint(const ObjectMesh *objMesh, const cv::Point2f &point2d, cv::Point3f &point3d)
+// Back project a 2D point to 3D and returns if it's on the object surface
+bool PnPProblem::backproject2DPoint(const ObjectMesh *mesh, const cv::Point2f &point2d, cv::Point3f &point3d)
 {
-
   // Triangles list of the object mesh
-  std::vector<std::vector<int> > triangles_list = objMesh->getTrianglesList();
+  std::vector<std::vector<int> > triangles_list = mesh->getTrianglesList();
 
   double lambda = 8;
   double u = point2d.x;
@@ -193,9 +194,9 @@ bool PnPProblem::backproject2DPoint(const ObjectMesh *objMesh, const cv::Point2f
   // Loop for all the triangles and check the intersection
   for (unsigned int i = 0; i < triangles_list.size(); i++)
   {
-    cv::Point3f V0 = objMesh->getVertex(triangles_list[i][0]);
-    cv::Point3f V1 = objMesh->getVertex(triangles_list[i][1]);
-    cv::Point3f V2 = objMesh->getVertex(triangles_list[i][2]);
+    cv::Point3f V0 = mesh->getVertex(triangles_list[i][0]);
+    cv::Point3f V1 = mesh->getVertex(triangles_list[i][1]);
+    cv::Point3f V2 = mesh->getVertex(triangles_list[i][2]);
 
     Triangle T(i, V0, V1, V2);
 

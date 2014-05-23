@@ -18,21 +18,9 @@
 
 class Triangle {
 public:
-  /**
-   * The custom constructor of the Triangle Class.
-   *
-   * @param id - The identification number.
-   * @param V0 - The first point of the triangle.
-   * @param V1 - The second point of the triangle.
-   * @param V2 - The third point of the triangle.
-   * @return
-   *
-   */
+
   explicit Triangle(int id, cv::Point3f V0, cv::Point3f V1, cv::Point3f V2);
-
-  /** The default destructor of the Class */
   virtual ~Triangle();
-
 
   cv::Point3f getV0() const { return v0_; }
   cv::Point3f getV1() const { return v1_; }
@@ -41,7 +29,7 @@ public:
 private:
   /** The identifier number of the triangle */
   int id_;
-  /** The three vertices that composes the triangle */
+  /** The three vertices that defines the triangle */
   cv::Point3f v0_, v1_, v2_;
 };
 
@@ -52,11 +40,15 @@ private:
 
 class Ray {
 public:
+
   explicit Ray(cv::Point3f P0, cv::Point3f P1);
   virtual ~Ray();
+
   cv::Point3f getP0() { return p0_; }
   cv::Point3f getP1() { return p1_; }
+
 private:
+  /** The two points that defines the ray */
   cv::Point3f p0_, p1_;
 };
 
@@ -68,46 +60,15 @@ private:
 class ObjectMesh
 {
 public:
-  /**
-  * The default constructor of the ObjectMesh Class.
-  *
-  * @param
-  * @return
-  *
-  */
-  ObjectMesh();
 
-  /** The default destructor of the Class */
+  ObjectMesh();
   virtual ~ObjectMesh();
 
-  /**
-   * Load a CSV file and fill the object mesh
-   *
-   * @param path_file - The path into the computer of the mesh file.
-   * @return
-   *
-   */
-  void loadMesh(const std::string path_file);
-
-   /**
-    * Get the current number of vertices
-    *
-    * @param
-    * @return - The current number of vertices
-    *
-    */
+  std::vector<std::vector<int> > getTrianglesList() const { return list_triangles_; }
+  cv::Point3f getVertex(int pos) const { return list_vertex_[pos]; }
   int getNumVertices() const { return num_vertexs_; }
 
-  /**
-    * Get a vertex form the list given a position
-    *
-    * @param
-    * @return - A vertex given a postion in the list
-    *
-    */
-  cv::Point3f getVertex(int pos) const { return list_vertex_[pos]; }
-
-  std::vector<std::vector<int> > getTrianglesList() const { return list_triangles_; }
+  void load(const std::string path_file);
 
 private:
   /** The identification number of the mesh */

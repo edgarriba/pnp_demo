@@ -14,8 +14,8 @@ pnp_app
 	src/CsvReader.cpp 
 	src/CsvWriter.cpp
 	src/ModelRegistration.cpp
-	src/ObjectMesh.cpp
-	src/ObjectModel.cpp
+	src/Mesh.cpp
+	src/Model.cpp
 	src/PnPProblem.cpp
 	src/Utils.cpp
 )

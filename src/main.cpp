@@ -10,15 +10,18 @@
 
 #include <assert.h>
 #include <boost/lexical_cast.hpp>
+#include <boost/shared_ptr.hpp>
 
-#include "PnPProblem.h"
 #include "Mesh.h"
 #include "Model.h"
+#include "PnPProblem.h"
 #include "ModelRegistration.h"
 #include "Utils.h"
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/nonfree/features2d.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 
 
   /*
@@ -37,7 +40,7 @@
   double f = 55;
   double sx = 22.3, sy = 14.9;
   double width = 718, height = 480;
-  double params[] = { width*f/sx,   // fx
+  double params_CANON[] = { width*f/sx,   // fx
                       height*f/sy,  // fy
                       width/2,      // cx
                       height/2};    // cy
@@ -49,16 +52,16 @@
   int pts[] = {1, 2, 3, 5, 6, 7, 8};
 
 
-  /*
-    * Set up the intrinsic camera parameters: LOGITECH QUICK PRO 5000
-    */
-   /*double f = 57;
-   double sx = 22.3, sy = 14.9;
-   double width = 640, height = 480;
-   double params[] = { width*f/sx,   // fx
-                       height*f/sy,  // fy
-                       width/2,      // cx
-                       height/2};    // cy*/
+ /*
+  * Set up the intrinsic camera parameters: LOGITECH QUICK PRO 5000
+  */
+ double f2 = 57;
+ double sx2 = 22.3, sy2 = 14.9;
+ double width2 = 640, height2 = 480;
+ double params_QUICK_PRO[] = { width*f2/sx2,   // fx
+                               height*f2/sy2,  // fy
+                               width2/2,       // cx
+                               height2/2};     // cy
 
   /*
    * Set up some basic colors
@@ -76,7 +79,8 @@
   ModelRegistration registration;
   Mesh mesh;
   Model model;
-  PnPProblem pnp(params);
+  PnPProblem pnp_registration(params_CANON);
+  PnPProblem pnp_detection(params_QUICK_PRO);
 
 
 // Mouse events for model registration
@@ -115,7 +119,6 @@ int main(int, char**)
 
   // Create & Open Window
   cv::namedWindow("MODEL REGISTRATION", cv::WINDOW_KEEPRATIO);
-
 
   // Set up the mouse events
   cv::setMouseCallback("MODEL REGISTRATION", onMouseModelRegistration, 0 );
@@ -182,22 +185,22 @@ int main(int, char**)
 
    std::cout << "COMPUTING POSE ..." << std::endl;
 
-  //int flags = CV_ITERATIVE;
+  //int flags = cv::ITERATIVE;
   //int flags = CV_P3P;
-  int flags = CV_EPNP;
+  int flags = cv::EPNP;
 
   // The list of registered points
   std::vector<cv::Point2f> list_points2d = registration.get_points2d();
   std::vector<cv::Point3f> list_points3d = registration.get_points3d();
 
   // Estimate pose given the registered points
-  bool is_correspondence = pnp.estimatePose(list_points2d, list_points3d, flags);
+  bool is_correspondence = pnp_registration.estimatePose(list_points2d, list_points3d, flags);
   if ( is_correspondence )
   {
     std::cout << "Correspondence found" << std::endl;
 
     // Compute all the 2D points of the mesh to verify the algorithm and draw it
-    std::vector<cv::Point2f> pts_2d_ground_truth = pnp.verify_points(&mesh);
+    std::vector<cv::Point2f> pts_2d_ground_truth = pnp_registration.verify_points(&mesh);
     draw2DPoints(img_vis, pts_2d_ground_truth, green);
 
     // TODO: quality verification
@@ -228,20 +231,20 @@ int main(int, char**)
 
   // Containers for keypoints and descriptors of the model
   std::vector<cv::KeyPoint> keypoints_model;
-  cv::Mat descriptors_model;
+  cv::Mat descriptors;
 
   // Compute keypoints and descriptors
-  computeKeyPoints(img_in, keypoints_model, descriptors_model);
+  computeKeyPoints(img_in, keypoints_model, descriptors);
 
   // Check if keypoints are on the surface of the registration image and add to the model
   for (unsigned int i = 0; i < keypoints_model.size(); ++i) {
     cv::Point2f point2d(keypoints_model[i].pt);
     cv::Point3f point3d;
-    bool on_surface = pnp.backproject2DPoint(&mesh, point2d, point3d);
+    bool on_surface = pnp_registration.backproject2DPoint(&mesh, point2d, point3d);
     if (on_surface)
     {
         model.add_correspondence(point2d, point3d);
-        model.add_descriptor(descriptors_model.row(i));
+        model.add_descriptor(descriptors.row(i));
     }
     else
     {
@@ -271,7 +274,7 @@ int main(int, char**)
     drawText2(img_vis, text, red);
 
     // Draw the object mesh
-    drawObjectMesh(img_vis, &mesh, &pnp, blue);
+    drawObjectMesh(img_vis, &mesh, &pnp_registration, blue);
 
     // Draw found keypoints depending on if are or not on the surface
     draw2DPoints(img_vis, list_points_in, green);
@@ -300,12 +303,12 @@ int main(int, char**)
       return -1;
 
   /* ORB parameters */
-  int nfeatures = 2500;
+  int nfeatures = 1000;
   float scaleFactor = 1.2f;
   int nlevels = 8;
   int edgeThreshold = 31;
   int firstLevel = 0;
-  int WTA_K = 2;
+  int WTA_K = 4;
   int scoreType = cv::ORB::HARRIS_SCORE;
   int patchSize = 31;
 
@@ -318,9 +321,13 @@ int main(int, char**)
    *
    *  */
 
-  int normType = cv::NORM_HAMMING;
+  //int normType = cv::NORM_HAMMING;
+  int normType = cv::NORM_HAMMING2;
   bool crossCheck = false;
   cv::BFMatcher matcher(normType, crossCheck);
+
+  // Get the descriptors on the model surface
+  cv::Mat descriptors_model = model.get_descriptors();
 
   // Add the descriptor to the matcher and train
   matcher.add(descriptors_model);
@@ -329,46 +336,75 @@ int main(int, char**)
   // Loop videostream
   while( cv::waitKey(30) < 0)
   {
-      cv::Mat frame, frame_vis;
-      cap >> frame; // get a new frame from camera
+    cv::Mat frame, frame_gray, frame_vis;
+    cap >> frame; // get a new frame from camera
 
-      std::vector<cv::KeyPoint> keypoints_scene, keypoints_match;
-      cv::Mat descriptors_scene;
+    cv::cvtColor( frame, frame_gray, CV_RGB2GRAY );
 
-      //-- Step 1: Calculate keypoints
-      orb.detect( frame, keypoints_scene );
+    std::vector<cv::KeyPoint> keypoints_scene;
+    cv::Mat descriptors_scene;
 
-      //-- Step 2: Calculate descriptors (feature std::vectors)
-      orb.compute( frame, keypoints_scene, descriptors_scene );
+    //-- Step 1: Calculate keypoints
+    orb.detect( frame_gray, keypoints_scene );
 
-      // -- Step 3: Match the found keypoints
-      //std::vector<std::vector<cv::DMatch> > matches;
-      std::vector<std::vector<cv::DMatch> > matches;
-      //matcher.match(model_descriptors, scene_descriptors, matches);
-      matcher.knnMatch(descriptors_scene, matches, 10);
+    //-- Step 2: Calculate descriptors (feature std::vectors)
+    orb.compute( frame_gray, keypoints_scene, descriptors_scene );
 
-      // Catch the matched keypoints to draw it
-      for(unsigned int i = 0; i < matches.size(); i++)
+    // -- Step 3: Match the found keypoints
+    std::vector<std::vector<cv::DMatch> > matches;
+    matcher.knnMatch(descriptors_scene, matches, 2); // Find two nearest matches
+
+    // -- Step 4: Ratio test
+    std::vector<cv::DMatch> good_matches;
+    for (unsigned int match_index = 0; match_index < matches.size(); ++match_index)
+    {
+      const float ratio = 0.8; // As in Lowe's paper; can be tuned
+      if (matches[match_index][0].distance < ratio * matches[match_index][1].distance)
       {
-        cv::DMatch match = matches[i][0];
-        cv::KeyPoint kp = keypoints_model[match.queryIdx];
-        keypoints_match.push_back(kp);
+          good_matches.push_back(matches[match_index][0]);
       }
+    }
 
-      //std::cout << "KP match: " << keypoints_match.size() << std::endl;
+    // -- Step 5: Localize the model
+    std::vector<cv::Point2f> keypoints_match_model;
+    std::vector<cv::Point3f> keypoints_match_model_3d;
+    std::vector<cv::Point2f> keypoints_match_scene;
 
-      cv::DrawMatchesFlags flag;
-      cv::drawKeypoints(frame, keypoints_scene, frame, red, flag.DEFAULT);
-      //cv::drawKeypoints(frame, keypoints_match, frame, blue, flag.DEFAULT);
-      //cv::drawMatches(img_in, keypoints_model, frame, keypoints_vis, matches, frame);
+    // Catch the matched keypoints of the scene to draw it
+    for(unsigned int match_index = 0; match_index < good_matches.size(); ++match_index)
+    {
+      keypoints_match_model.push_back(keypoints_model[ good_matches[match_index].queryIdx ].pt);
+      keypoints_match_model_3d.push_back(model.get_correspondence3d(keypoints_match_model[match_index]));
+      keypoints_match_scene.push_back(keypoints_scene[ good_matches[match_index].trainIdx ].pt);
+    }
+
+    // -- Step X: Draw correspondences
+
+    // Draw the keypoints
+    /*cv::DrawMatchesFlags flag;
+    cv::drawKeypoints(frame.clone(), keypoints_scene, frame_vis, red, flag.DEFAULT);
+    cv::drawKeypoints(frame_vis.clone(), keypoints_match_scene, frame_vis, blue, flag.DEFAULT);
+     */
+
+    // Switched the order due to a opencv bug
+    cv::drawMatches(frame, keypoints_scene, img_in, keypoints_model, good_matches, frame_vis, red, blue);
+
+    // -- Step 6: Estimate Pose
+    pnp_detection.estimatePoseRANSAC(keypoints_match_model, keypoints_match_model_3d, cv::ITERATIVE);
+
+    // Get the prjection matrix
+    cv::Mat P_mat = pnp_detection.get_P_matrix();
+
+    std::cout << "P_matrix:" << std::endl << P_mat << std::endl;
 
 
-      // Draw some debug text
-      std::string n = boost::lexical_cast< std::string >(matches.size());
-      std::string text = "Found " + n + " matches";
-      drawText(frame, text, green);
+    // Draw some debug text
+    std::string n = boost::lexical_cast< std::string >(good_matches.size());
+    std::string m = boost::lexical_cast< std::string >(matches.size());
+    std::string text = "Found " + n + " of " + m + " matches";
+    drawText(frame_vis, text, green);
 
-      cv::imshow("LIVE DEMO", frame);
+    cv::imshow("LIVE DEMO", frame_vis);
   }
 
   // Close and Destroy Window

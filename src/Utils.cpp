@@ -12,7 +12,8 @@
 #include "ModelRegistration.h"
 #include "Utils.h"
 
-#include "opencv2/nonfree/features2d.hpp"
+#include <opencv2/imgproc.hpp>
+#include <opencv2/nonfree/features2d.hpp>
 
 
 // For text
@@ -161,23 +162,26 @@ void drawObjectMesh(cv::Mat image, const Mesh *mesh, PnPProblem *pnpProblem, cv:
 void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors)
 {
 
+  cv::Mat image_gray;
+  cv::cvtColor( image, image_gray, CV_RGB2GRAY );
+
   /* ORB parameters */
-  int nfeatures = 2500;
+  int nfeatures = 1000;
   float scaleFactor = 1.2f;
   int nlevels = 8;
   int edgeThreshold = 31;
   int firstLevel = 0;
-  int WTA_K = 2;
+  int WTA_K = 4;
   int scoreType = cv::ORB::HARRIS_SCORE;
   int patchSize = 31;
 
   cv::ORB orb(nfeatures, scaleFactor, nlevels, edgeThreshold, firstLevel, WTA_K, scoreType, patchSize);
 
   //-- Step 1: Calculate keypoints
-  orb.detect( image, keypoints );
+  orb.detect( image_gray, keypoints );
 
   //-- Step 2: Calculate descriptors (feature vectors)
-  orb.compute( image, keypoints, descriptors );
+  orb.compute( image_gray, keypoints, descriptors );
 
 }
 

@@ -118,6 +118,51 @@ bool PnPProblem::estimatePose(const std::vector<cv::Point2f> &list_points2d, con
   return correspondence;
 }
 
+// Estimate the pose given a list of 2D/3D correspondences with RANSAC and the method to use
+void PnPProblem::estimatePoseRANSAC(const std::vector<cv::Point2f> &list_points2d, const std::vector<cv::Point3f> &list_points3d, int flags)
+{
+  cv::Mat distCoeffs = cv::Mat::zeros(4, 1, cv::DataType<double>::type);
+  cv::Mat rvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
+  cv::Mat tvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
+
+  //std::cout << "A = "<< std::endl << " "  << _A_matrix << std::endl << std::endl;
+
+  /* RANSAC parameters */
+  bool useExtrinsicGuess = false;
+  int iterationsCount = 1000; //100
+  float reprojectionError = 0.2; //8.0
+  int minInliersCount = 25; //100
+  cv::Mat inliers;
+
+  // Pose estimation
+  cv::solvePnPRansac(list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec, useExtrinsicGuess, iterationsCount, reprojectionError, minInliersCount, inliers, flags);
+
+  std::cout << "Inliers: "<<  inliers.size() << std::endl << std::endl;
+
+  // Transforms Rotation Vector to Matrix
+  Rodrigues(rvec,_R_matrix);
+  _t_matrix = tvec;
+
+  //std::cout << "R = "<< std::endl << " "  << _R_matrix << std::endl << std::endl;
+  //std::cout << "t = "<< std::endl << " "  << _t_matrix << std::endl << std::endl;
+
+  // Rotation-Translation Matrix Definition
+  _P_matrix.at<double>(0,0) = _R_matrix.at<double>(0,0);
+  _P_matrix.at<double>(0,1) = _R_matrix.at<double>(0,1);
+  _P_matrix.at<double>(0,2) = _R_matrix.at<double>(0,2);
+  _P_matrix.at<double>(1,0) = _R_matrix.at<double>(1,0);
+  _P_matrix.at<double>(1,1) = _R_matrix.at<double>(1,1);
+  _P_matrix.at<double>(1,2) = _R_matrix.at<double>(1,2);
+  _P_matrix.at<double>(2,0) = _R_matrix.at<double>(2,0);
+  _P_matrix.at<double>(2,1) = _R_matrix.at<double>(2,1);
+  _P_matrix.at<double>(0,3) = _t_matrix.at<double>(0);
+  _P_matrix.at<double>(1,3) = _t_matrix.at<double>(1);
+  _P_matrix.at<double>(2,3) = _t_matrix.at<double>(2);
+
+  //std::cout << "P = "<< std::endl << " "  << _P_matrix << std::endl << std::endl;
+
+}
+
 // Given the mesh, backproject the 3D points to 2D to verify the pose estimation
 std::vector<cv::Point2f> PnPProblem::verify_points(Mesh *mesh)
 {

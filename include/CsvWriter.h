@@ -2,19 +2,19 @@
 #define	CSVWRITER_H
 
 #include <fstream>
-#include <string>
+#include <iostream>
 
-using namespace std;
+#include <opencv2/core.hpp>
 
 class CsvWriter {
 public:
-    CsvWriter(const string &path, const string &separator = " ");
-	~CsvWriter();
-    void addTerm(const string &s);
+  CsvWriter(const std::string &path, const std::string &separator = " ");
+  ~CsvWriter();
+  void addTerm(const std::vector<cv::Point3f> &list_points3d);
 private:
-    ofstream _file;
-	string _separator;
-    bool _isFirstTerm;
+  std::ofstream _file;
+  std::string _separator;
+  bool _isFirstTerm;
 };
 
 #endif

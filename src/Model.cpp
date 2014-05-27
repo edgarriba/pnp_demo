@@ -6,6 +6,7 @@
  */
 
 #include "Model.h"
+#include "CsvWriter.h"
 
 Model::Model() : list_points2d_in_(0), list_points2d_out_(0), list_points3d_in_(0)
 {
@@ -37,13 +38,24 @@ void Model::add_descriptor(const cv::Mat &descriptor)
 cv::Point3f Model::get_correspondence3d(const cv::Point2f &point2d)
 {
   unsigned int i = 0;
-  bool is_equal = (point2d.x == list_points3d_in_[i].x) && (point2d.y == list_points3d_in_[i].y);
-  while( !is_equal && i < list_points3d_in_.size() )
+  bool is_equal = (point2d.x == list_points2d_in_[i].x) && (point2d.y == list_points2d_in_[i].y);
+  while( !is_equal && i < list_points2d_in_.size() )
   {
     i++;
-    is_equal = (point2d.x == list_points3d_in_[i].x) && (point2d.y == list_points3d_in_[i].y);
+    is_equal = (point2d.x == list_points2d_in_[i].x) && (point2d.y == list_points2d_in_[i].y);
   }
-    return list_points3d_in_[i];
+
+  std::cout << i << " - P1: " << point2d << " P2: " << list_points3d_in_[i] << std::endl;
+  CV_Assert((point2d.x == list_points2d_in_[i].x) && (point2d.y == list_points2d_in_[i].y));
+
+  return list_points3d_in_[i];
+}
+
+/** Save a CSV file and fill the object mesh */
+void Model::save(const std::string path) {
+
+  CsvWriter csvWritter(path," ");
+  csvWritter.addTerm(list_points3d_in_);
 }
 
 

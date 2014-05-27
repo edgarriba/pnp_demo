@@ -26,6 +26,8 @@ public:
   void add_correspondence(const cv::Point2f &point2d, const cv::Point3f &point3d);
   void add_outlier(const cv::Point2f &point2d);
   void add_descriptor(const cv::Mat &descriptor);
+  void save(const std::string path);
+
 
 private:
   /** The current number of correspondecnes */

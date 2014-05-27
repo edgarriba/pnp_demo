@@ -10,7 +10,6 @@
 
 #include <assert.h>
 #include <boost/lexical_cast.hpp>
-#include <boost/shared_ptr.hpp>
 
 #include "Mesh.h"
 #include "Model.h"
@@ -30,6 +29,7 @@
   std::string img_path = "../Data/resized_IMG_3875.JPG";
   //std::string img_path = "../Data/test.jpg";
   std::string ply_read_path = "../Data/box.ply";
+  std::string xyz_write_path = "../Data/point_cloud.xyz";
 
   // Boolean the know if the registration it's done
   bool end_registration = false;
@@ -252,6 +252,8 @@ int main(int, char**)
     }
   }
 
+  // save the model into a *.xyz file
+  model.save(xyz_write_path);
 
   // Draw keypoints
   while ( cv::waitKey(30) < 0 )
@@ -288,6 +290,7 @@ int main(int, char**)
   // Close and Destroy Window
   cv::destroyWindow("CHECK POINTS");
 
+  return 0;
 
   /*
   * DEMO LIVE:
@@ -374,8 +377,8 @@ int main(int, char**)
     for(unsigned int match_index = 0; match_index < good_matches.size(); ++match_index)
     {
       keypoints_match_model.push_back(keypoints_model[ good_matches[match_index].queryIdx ].pt);
-      keypoints_match_model_3d.push_back(model.get_correspondence3d(keypoints_match_model[match_index]));
       keypoints_match_scene.push_back(keypoints_scene[ good_matches[match_index].trainIdx ].pt);
+      keypoints_match_model_3d.push_back(model.get_correspondence3d(keypoints_match_model[match_index]));
     }
 
     // -- Step X: Draw correspondences
@@ -389,14 +392,16 @@ int main(int, char**)
     // Switched the order due to a opencv bug
     cv::drawMatches(frame, keypoints_scene, img_in, keypoints_model, good_matches, frame_vis, red, blue);
 
-    // -- Step 6: Estimate Pose
-    pnp_detection.estimatePoseRANSAC(keypoints_match_model, keypoints_match_model_3d, cv::ITERATIVE);
+    if(keypoints_match_model.size() == keypoints_match_model_3d.size())
+    {
+      // -- Step 6: Estimate Pose
+     // pnp_detection.estimatePoseRANSAC(keypoints_match_model, keypoints_match_model_3d, cv::EPNP);
 
-    // Get the prjection matrix
-    cv::Mat P_mat = pnp_detection.get_P_matrix();
+      // Get the prjection matrix
+      cv::Mat P_mat = pnp_detection.get_P_matrix();
 
-    std::cout << "P_matrix:" << std::endl << P_mat << std::endl;
-
+      std::cout << "P_matrix:" << std::endl << P_mat << std::endl;
+    }
 
     // Draw some debug text
     std::string n = boost::lexical_cast< std::string >(good_matches.size());

@@ -28,7 +28,7 @@ public:
   std::vector<cv::Point2f> verify_points(Mesh *mesh);
   cv::Point2f backproject3DPoint(const cv::Point3f &point3d);
   bool estimatePose(const std::vector<cv::Point2f> &list_points2d, const std::vector<cv::Point3f> &list_points3d, int flags);
-  void estimatePoseRANSAC(const std::vector<cv::Point2f> &list_points2d, const std::vector<cv::Point3f> &list_points3d, int flags);
+  void estimatePoseRANSAC(const std::vector<cv::Point2f> &list_points2d, const std::vector<cv::Point3f> &list_points3d, int flags, cv::Mat &inliers);
 
   cv::Mat get_A_matrix() const { return _A_matrix; }
   cv::Mat get_R_matrix() const { return _R_matrix; }

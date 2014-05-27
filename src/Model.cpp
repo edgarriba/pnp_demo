@@ -35,7 +35,7 @@ void Model::add_descriptor(const cv::Mat &descriptor)
   descriptors_.push_back(descriptor);
 }
 
-cv::Point3f Model::get_correspondence3d(const cv::Point2f &point2d)
+bool Model::get_correspondence3d(const cv::Point2f &point2d, cv::Point3f &point3d)
 {
   unsigned int i = 0;
   bool is_equal = (point2d.x == list_points2d_in_[i].x) && (point2d.y == list_points2d_in_[i].y);
@@ -45,10 +45,9 @@ cv::Point3f Model::get_correspondence3d(const cv::Point2f &point2d)
     is_equal = (point2d.x == list_points2d_in_[i].x) && (point2d.y == list_points2d_in_[i].y);
   }
 
-  std::cout << i << " - P1: " << point2d << " P2: " << list_points3d_in_[i] << std::endl;
-  CV_Assert((point2d.x == list_points2d_in_[i].x) && (point2d.y == list_points2d_in_[i].y));
+  if (is_equal) point3d = list_points3d_in_[i];
 
-  return list_points3d_in_[i];
+  return is_equal;
 }
 
 /** Save a CSV file and fill the object mesh */

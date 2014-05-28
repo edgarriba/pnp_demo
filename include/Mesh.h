@@ -1,5 +1,5 @@
 /*
- * ObjectMesh.h
+ * Mesh.h
  *
  *  Created on: Apr 9, 2014
  *      Author: edgar

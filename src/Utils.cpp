@@ -86,7 +86,7 @@ void draw2DPoints(cv::Mat image, std::vector<cv::Point2f> &list_points, cv::Scal
 {
   for( size_t i = 0; i < list_points.size(); i++)
   {
-    cv::Point2f point_2d = list_points.at(i);
+    cv::Point2f point_2d = list_points[i];
 
     // Draw Selected points
     cv::circle(image, point_2d, radius, color, -1, lineType );
@@ -171,7 +171,7 @@ void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints,
   int nlevels = 8;
   int edgeThreshold = 31;
   int firstLevel = 0;
-  int WTA_K = 4;
+  int WTA_K = 2;
   int scoreType = cv::ORB::HARRIS_SCORE;
   int patchSize = 31;
 
@@ -183,5 +183,10 @@ void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints,
   //-- Step 2: Calculate descriptors (feature vectors)
   orb.compute( image_gray, keypoints, descriptors );
 
+}
+
+bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2)
+{
+  return ( (p1.x == p2.x) && (p1.y == p2.y) );
 }
 

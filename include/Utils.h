@@ -43,4 +43,6 @@ std::vector<cv::Point2f> verification_points(PnPProblem *p);
 // Compute the ORB keypoints and descriptors of a given image
 void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors);
 
+bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2);
+
 #endif /* UTILS_H_ */

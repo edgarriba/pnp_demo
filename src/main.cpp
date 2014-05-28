@@ -194,7 +194,7 @@ int main(int, char**)
   std::vector<cv::Point3f> list_points3d = registration.get_points3d();
 
   // Estimate pose given the registered points
-  bool is_correspondence = pnp_registration.estimatePose(list_points2d, list_points3d, flags);
+  bool is_correspondence = pnp_registration.estimatePose(list_points3d, list_points2d, flags);
   if ( is_correspondence )
   {
     std::cout << "Correspondence found" << std::endl;
@@ -207,7 +207,7 @@ int main(int, char**)
     //p.writeUVfile(csv_write_path);
 
   } else {
-    std::cout << "Correspondence not found" << std::endl;
+    std::cout << "Correspondence not found" << std::endl << std::endl;
   }
 
   // Show the image
@@ -291,17 +291,22 @@ int main(int, char**)
   cv::destroyWindow("CHECK POINTS");
 
   /*
-  * DEMO LIVE:
+  * REAL TIME DEMO:
   * READ VIDEO STREAM AND COMPUTE KEYPOINTS
   *
   */
 
   // Create & Open Window
-  cv::namedWindow("LIVE DEMO", cv::WINDOW_KEEPRATIO);
+  cv::namedWindow("REAL TIME DEMO", cv::WINDOW_KEEPRATIO);
 
   cv::VideoCapture cap(0); // open the default camera
   if(!cap.isOpened())  // check if we succeeded
       return -1;
+
+  // Get the MODEL INFO
+  std::vector<cv::Point2f> list_points2d_model = model.get_points2d_in();
+  std::vector<cv::Point3f> list_points3d_model = model.get_points3d();
+  cv::Mat descriptors_model = model.get_descriptors();
 
   /* ORB parameters */
   int nfeatures = 1000;
@@ -309,7 +314,7 @@ int main(int, char**)
   int nlevels = 8;
   int edgeThreshold = 31;
   int firstLevel = 0;
-  int WTA_K = 4;
+  int WTA_K = 2;
   int scoreType = cv::ORB::HARRIS_SCORE;
   int patchSize = 31;
 
@@ -323,12 +328,9 @@ int main(int, char**)
    *  */
 
   //int normType = cv::NORM_HAMMING;
-  int normType = cv::NORM_HAMMING2;
+  int normType = cv::NORM_HAMMING;
   bool crossCheck = false;
   cv::BFMatcher matcher(normType, crossCheck);
-
-  // Get the descriptors on the model surface
-  cv::Mat descriptors_model = model.get_descriptors();
 
   // Add the descriptor to the matcher and train
   matcher.add(descriptors_model);
@@ -342,13 +344,12 @@ int main(int, char**)
 
     cv::cvtColor( frame, frame_gray, CV_RGB2GRAY );
 
-    std::vector<cv::KeyPoint> keypoints_scene;
-    cv::Mat descriptors_scene;
-
     //-- Step 1: Calculate keypoints
+    std::vector<cv::KeyPoint> keypoints_scene;
     orb.detect( frame_gray, keypoints_scene );
 
     //-- Step 2: Calculate descriptors (feature std::vectors)
+    cv::Mat descriptors_scene;
     orb.compute( frame_gray, keypoints_scene, descriptors_scene );
 
     // -- Step 3: Match the found keypoints
@@ -366,70 +367,73 @@ int main(int, char**)
       }
     }
 
-    // -- Step 5: Localize the model
-    std::vector<cv::Point2f> keypoints_match_model;
-    std::vector<cv::Point3f> keypoints_match_model_3d;
-    std::vector<cv::Point2f> keypoints_match_scene;
-
-    // Catch the matched keypoints of the scene to draw it
+    // -- Step 5: Find out the 2D/3D correspondences
+    std::vector<cv::Point3f> list_points3d_model_match;
+    std::vector<cv::Point2f> list_points2d_scene_match;
     for(unsigned int match_index = 0; match_index < good_matches.size(); ++match_index)
     {
-      keypoints_match_model.push_back(keypoints_model[ good_matches[match_index].queryIdx ].pt);
-      keypoints_match_scene.push_back(keypoints_scene[ good_matches[match_index].trainIdx ].pt);
-
-      cv::Point3f point3d;
-      if (model.get_correspondence3d(keypoints_match_model[match_index], point3d))
-      {
-        keypoints_match_model_3d.push_back(point3d);
-      }
-      else
-      {
-        keypoints_match_model.pop_back();
-        keypoints_match_scene.pop_back();
-      }
+      cv::Point3f point3d_model = list_points3d_model[ good_matches[match_index].trainIdx ];
+      cv::Point2f point2d_scene = keypoints_scene[ good_matches[match_index].queryIdx ].pt;
+      list_points3d_model_match.push_back(point3d_model);
+      list_points2d_scene_match.push_back(point2d_scene);
     }
+
+    // -- Step 6: Estimate the pose using RANSAC approach
+    cv::Mat inliers;
+    pnp_detection.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match, cv::EPNP, inliers);
+
+    std::cout << "Num. Inliers: " << inliers.rows << std::endl;
+
+
+    // -- Step 7: Catch the inliers keypoints
+    std::vector<cv::DMatch> matches_inliers;
+    std::vector<cv::Point2f> list_points2d_inliers;
+    for(int inliers_index = 0; inliers_index < inliers.rows; ++inliers_index)
+    {
+      int n = inliers.at<int>(inliers_index);
+      cv::Point2f point2d = list_points2d_scene_match[n];
+      list_points2d_inliers.push_back(point2d);
+
+      unsigned int match_index = 0;
+      bool is_equal = equal_point( point2d, keypoints_scene[good_matches[match_index].queryIdx].pt );
+      while ( !is_equal && match_index < good_matches.size() )
+      {
+        match_index++;
+        is_equal = equal_point( point2d, keypoints_scene[good_matches[match_index].queryIdx].pt );
+      }
+      matches_inliers.push_back(good_matches[match_index]);
+    }
+
+    // -- Step 8: Get the projection matrix
+    cv::Mat P_mat = pnp_detection.get_P_matrix();
+    //std::cout << "P_matrix:" << std::endl << P_mat << std::endl;
+
 
     // -- Step X: Draw correspondences
 
-    // Draw the keypoints
-    /*cv::DrawMatchesFlags flag;
-    cv::drawKeypoints(frame.clone(), keypoints_scene, frame_vis, red, flag.DEFAULT);
-    cv::drawKeypoints(frame_vis.clone(), keypoints_match_scene, frame_vis, blue, flag.DEFAULT);
-     */
-
     // Switched the order due to a opencv bug
-   // cv::drawMatches(frame, keypoints_scene, img_in, keypoints_model, good_matches, frame_vis, red, blue);
+    cv::drawMatches(frame, keypoints_scene, img_in, keypoints_model, matches_inliers, frame_vis, red, blue);
 
-    cv::Mat inliers;
-    pnp_detection.estimatePoseRANSAC(keypoints_match_model, keypoints_match_model_3d, cv::EPNP, inliers);
 
-    //std::cout << "Inliers: "<<  inliers << std::endl << std::endl;
-
-    std::vector<cv::KeyPoint> keypoints_inliers;
-    for(int i = 0; i < inliers.rows; ++i)
-    {
-      int n = inliers.at<int>(i);
-      keypoints_inliers.push_back(keypoints_scene[n]);
-    }
-
-    cv::drawKeypoints(frame, keypoints_inliers, frame_vis, blue);
-
-    // Get the prjection matrix
-    cv::Mat P_mat = pnp_detection.get_P_matrix();
-
-    //std::cout << "P_matrix:" << std::endl << P_mat << std::endl;
+    // -- Step X: Draw some text for debugging purpose
 
     // Draw some debug text
-    std::string n = boost::lexical_cast< std::string >(keypoints_inliers.size());
-    std::string m = boost::lexical_cast< std::string >(matches.size());
-    std::string text = "Found " + n + " of " + m + " matches";
-    drawText(frame_vis, text, green);
+    int inliers_int = inliers.rows;
+    int outliers_int = list_points3d_model_match.size() - inliers_int;
+    std::string inliers_str = boost::lexical_cast< std::string >(inliers_int);
+    std::string outliers_str = boost::lexical_cast< std::string >(outliers_int);
+    std::string n = boost::lexical_cast< std::string >(good_matches.size());
+    std::string text = "Found " + inliers_str + " of " + n + " matches";
+    std::string text2 = "Inliers: " + inliers_str + " - Outliers: " + outliers_str;
 
-    cv::imshow("LIVE DEMO", frame_vis);
+    drawText(frame_vis, text, green);
+    drawText2(frame_vis, text2, red);
+
+    cv::imshow("REAL TIME DEMO", frame_vis);
   }
 
   // Close and Destroy Window
-  cv::destroyWindow("LIVE DEMO");
+  cv::destroyWindow("REAL TIME DEMO");
 
 
   std::cout << "GOODBYE ..." << std::endl;

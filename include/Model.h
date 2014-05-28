@@ -19,9 +19,10 @@ public:
 
   std::vector<cv::Point2f> get_points2d_in() const { return list_points2d_in_; }
   std::vector<cv::Point2f> get_points2d_out() const { return list_points2d_out_; }
+  std::vector<cv::Point3f> get_points3d() const { return list_points3d_in_; }
+
   cv::Mat get_descriptors() const { return descriptors_; }
   int get_numDescriptors() const { return descriptors_.rows; }
-  bool get_correspondence3d(const cv::Point2f &point2d, cv::Point3f &point3d);
 
   void add_correspondence(const cv::Point2f &point2d, const cv::Point3f &point3d);
   void add_outlier(const cv::Point2f &point2d);

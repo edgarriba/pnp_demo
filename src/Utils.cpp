@@ -113,7 +113,7 @@ void drawArrow(cv::Mat image, cv::Point2i p, cv::Point2i q, cv::Scalar color, in
   cv::line(image, p, q, color, thickness, line_type, shift);
 }
 
-void draw3DCoordinateAxes(cv::Mat image, cv::Scalar color)
+void draw3DCoordinateAxes(cv::Mat image, const std::vector<cv::Point2f> &list_points2d)
 {
   cv::Scalar red(0, 0, 255);
   cv::Scalar green(0,255,0);
@@ -123,12 +123,10 @@ void draw3DCoordinateAxes(cv::Mat image, cv::Scalar color)
   const double PI = 3.141592653;
   int length = 50;
 
-  cv::Point2i origin(625,425);
-  cv::Point2i pointX(origin.x,origin.y-length);
-  cv::Point2i pointY(origin.x+length,origin.y);
-  cv::Point2i pointZ;
-  pointZ.x = (int) ( origin.x - length * cos(30*PI/360 + PI/4));
-  pointZ.y = (int) ( origin.y - length * cos(30*PI/360 + PI/4));
+  cv::Point2i origin = list_points2d[0];
+  cv::Point2i pointX = list_points2d[1];
+  cv::Point2i pointY = list_points2d[2];
+  cv::Point2i pointZ = list_points2d[3];
 
   drawArrow(image, origin, pointX, red, 9, 2);
   drawArrow(image, origin, pointY, blue, 9, 2);

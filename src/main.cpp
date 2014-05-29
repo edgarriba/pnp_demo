@@ -401,10 +401,18 @@ int main(int, char**)
       matches_inliers.push_back(good_matches[match_index]);
     }
 
-    // -- Step 8: Get the projection matrix
+    // -- Step 8: Back project
     cv::Mat P_mat = pnp_detection.get_P_matrix();
     //std::cout << "P_matrix:" << std::endl << P_mat << std::endl;
 
+    // Draw pose
+    double l = 5;
+    std::vector<cv::Point2f> pose_points2d;
+    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,0)));
+    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(l,0,0)));
+    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,l,0)));
+    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,l)));
+    draw3DCoordinateAxes(frame, pose_points2d);
 
     // -- Step X: Draw correspondences
 
@@ -440,9 +448,8 @@ int main(int, char**)
     double error_trans = get_translation_error(t_true, t);
     double error_rot = get_rotation_error(R_true, R);
 
-    std::cout << "Translation error: " << error_trans << std::endl;
-    std::cout << "Rotation error: " << error_rot << std::endl;
-
+    //std::cout << "Translation error: " << error_trans << std::endl;
+    //std::cout << "Rotation error: " << error_rot << std::endl;
 
     cv::imshow("REAL TIME DEMO", frame_vis);
   }

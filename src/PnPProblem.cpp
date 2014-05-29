@@ -127,8 +127,8 @@ void PnPProblem::estimatePoseRANSAC(const std::vector<cv::Point3f> &list_points3
 
   /* RANSAC parameters */
   bool useExtrinsicGuess = false;
-  int iterationsCount = 1000; //100
-  float reprojectionError = 1.0; //8.0
+  int iterationsCount = 100; //100
+  float reprojectionError = 8.0; //8.0
   int minInliersCount = 100; //100
 
   // Pose estimation

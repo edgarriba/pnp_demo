@@ -26,6 +26,13 @@ void ModelRegistration::registerPoint(const cv::Point2f &point2d, const cv::Poin
     n_registrations_++;
  }
 
+void ModelRegistration::reset()
+{
+  n_registrations_ = 0;
+  max_registrations_ = 0;
+  list_points2d_.clear();
+  list_points3d_.clear();
+}
 
 
 

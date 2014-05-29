@@ -27,6 +27,7 @@ public:
 
   bool is_registrable() const { return (n_registrations_ < max_registrations_); }
   void registerPoint(const cv::Point2f &point2d, const cv::Point3f &point3d);
+  void reset();
 
 private:
 /** The current number of registered points */

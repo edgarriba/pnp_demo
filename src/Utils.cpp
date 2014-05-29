@@ -13,6 +13,7 @@
 #include "Utils.h"
 
 #include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 
 
@@ -188,5 +189,60 @@ void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints,
 bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2)
 {
   return ( (p1.x == p2.x) && (p1.y == p2.y) );
+}
+
+double get_translation_error(const cv::Mat &t_true, const cv::Mat &t)
+{
+  return cv::norm( t_true - t ) / cv::norm(t);
+}
+
+double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R)
+{
+  double error;
+  int  method = 1;  // 0 Francesc - 1 Luis - 2 Alex
+  if( method == 0 )
+  {
+    // convert Rotation matrix to quaternion
+    double qw_true = sqrt( 1 + R_true.at<double>(0,0) + R_true.at<double>(1,1) + R_true.at<double>(2,2) ) / 2;
+    double qw = sqrt( 1 + R.at<double>(0,0) + R.at<double>(1,1) + R.at<double>(2,2) ) / 2;
+    double qx_true = R_true.at<double>(2,1) - R_true.at<double>(1,2) / 4*qw_true;
+    double qx = (R.at<double>(2,1) - R.at<double>(1,2)) / 4*qw;
+    double qy_true = R_true.at<double>(0,2) - R_true.at<double>(2,0) / 4*qw_true;
+    double qy = (R.at<double>(0,2) - R.at<double>(2,0)) / 4*qw;
+    double qz_true = R_true.at<double>(1,0) - R_true.at<double>(0,1) / 4*qw_true;
+    double qz = (R.at<double>(1,0) - R.at<double>(0,1)) / 4*qw;
+
+    cv::Mat q_true = cv::Mat::zeros(4, 1, cv::DataType<double>::type);
+    cv::Mat q = cv::Mat::zeros(4, 1, cv::DataType<double>::type);
+    q_true.at<double>(0) = qw_true;
+    q_true.at<double>(1) = qx_true;
+    q_true.at<double>(2) = qy_true;
+    q_true.at<double>(3) = qz_true;
+    q.at<double>(0) = qw;
+    q.at<double>(1) = qx;
+    q.at<double>(2) = qy;
+    q.at<double>(3) = qz;
+
+    error = cv::norm( q_true - q ) / cv::norm(q);
+  }
+  else if( method == 1 )
+  {
+    double error_max = 0;
+    for(int i = 0; i < 3; ++i)
+    {
+      cv::Mat tmp = R_true.col(i).t() * R;
+      double error_i = acos( tmp.at<double>(0) ) * 180 / CV_PI;
+      if( error_i > error_max ) error_max = error_i;
+    }
+    error = error_max;
+  }
+  else if( method == 2 )
+  {
+    cv::Mat error_vec, error_mat;
+    error_mat = R_true * cv::Mat(R.inv()).mul(-1);
+    cv::Rodrigues(error_mat, error_vec);
+    error = cv::norm(error_vec);
+  }
+  return error;
 }
 

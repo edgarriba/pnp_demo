@@ -382,9 +382,6 @@ int main(int, char**)
     cv::Mat inliers;
     pnp_detection.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match, cv::EPNP, inliers);
 
-    std::cout << "Num. Inliers: " << inliers.rows << std::endl;
-
-
     // -- Step 7: Catch the inliers keypoints
     std::vector<cv::DMatch> matches_inliers;
     std::vector<cv::Point2f> list_points2d_inliers;
@@ -429,12 +426,29 @@ int main(int, char**)
     drawText(frame_vis, text, green);
     drawText2(frame_vis, text2, red);
 
+     /*
+    * PNP VERIFIATION:
+    * Calculation of the rotation and translation error
+    *
+    */
+    cv::Mat t_true = pnp_registration.get_t_matrix();
+    cv::Mat t = pnp_detection.get_t_matrix();
+
+    cv::Mat R_true = pnp_registration.get_R_matrix();
+    cv::Mat R = pnp_detection.get_R_matrix();
+
+    double error_trans = get_translation_error(t_true, t);
+    double error_rot = get_rotation_error(R_true, R);
+
+    std::cout << "Translation error: " << error_trans << std::endl;
+    std::cout << "Rotation error: " << error_rot << std::endl;
+
+
     cv::imshow("REAL TIME DEMO", frame_vis);
   }
 
   // Close and Destroy Window
   cv::destroyWindow("REAL TIME DEMO");
-
 
   std::cout << "GOODBYE ..." << std::endl;
 

@@ -45,4 +45,8 @@ void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints,
 
 bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2);
 
+double get_translation_error(const cv::Mat &t_true, const cv::Mat &t);
+double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R);
+
+
 #endif /* UTILS_H_ */

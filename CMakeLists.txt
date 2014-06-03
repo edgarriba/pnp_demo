@@ -20,4 +20,43 @@ pnp_app
 	src/Utils.cpp
 )
 
+add_executable( 
+pnp_registration 
+	src/main_registration.cpp
+	src/CsvReader.cpp 
+	src/CsvWriter.cpp
+	src/ModelRegistration.cpp
+	src/Mesh.cpp
+	src/Model.cpp
+	src/PnPProblem.cpp
+	src/Utils.cpp
+)
+
+add_executable( 
+pnp_verification 
+	src/main_verification.cpp
+	src/CsvReader.cpp 
+	src/CsvWriter.cpp
+	src/ModelRegistration.cpp
+	src/Mesh.cpp
+	src/Model.cpp
+	src/PnPProblem.cpp
+	src/Utils.cpp
+)
+
+add_executable( 
+pnp_detection 
+	src/main_detection.cpp
+	src/CsvReader.cpp 
+	src/CsvWriter.cpp
+	src/ModelRegistration.cpp
+	src/Mesh.cpp
+	src/Model.cpp
+	src/PnPProblem.cpp
+	src/Utils.cpp
+)
+
 target_link_libraries( pnp_app ${OpenCV_LIBS} )
+target_link_libraries( pnp_registration ${OpenCV_LIBS} )
+target_link_libraries( pnp_verification ${OpenCV_LIBS} )
+target_link_libraries( pnp_detection ${OpenCV_LIBS} )

@@ -132,7 +132,8 @@ void PnPProblem::estimatePoseRANSAC(const std::vector<cv::Point3f> &list_points3
   int minInliersCount = 100; //100
 
   // Pose estimation
-  cv::solvePnPRansac(list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec, useExtrinsicGuess, iterationsCount, reprojectionError, minInliersCount, inliers, flags);
+  cv::solvePnPRansac( list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec,
+                      useExtrinsicGuess, iterationsCount, reprojectionError, minInliersCount, inliers, flags );
 
   // Transforms Rotation Vector to Matrix
   Rodrigues(rvec,_R_matrix);

@@ -36,10 +36,35 @@ void Model::add_descriptor(const cv::Mat &descriptor)
 }
 
 /** Save a CSV file and fill the object mesh */
-void Model::save(const std::string path) {
+void Model::save(const std::string path)
+{
+  cv::Mat points3dmatrix = cv::Mat(list_points3d_in_);
+  cv::Mat points2dmatrix = cv::Mat(list_points2d_in_);
 
-  CsvWriter csvWritter(path," ");
-  csvWritter.addTerm(list_points3d_in_);
+  cv::FileStorage storage(path, cv::FileStorage::WRITE);
+  storage << "points_3d" << points3dmatrix;
+  storage << "points_2d" << points2dmatrix;
+  storage << "descriptors" << descriptors_;
+  storage.release();
+}
+
+/** Save a CSV file and fill the object mesh */
+void Model::load(const std::string path)
+{
+  list_points3d_in_.clear();
+  list_points2d_in_.clear();
+
+  cv::FileStorage storage(path, cv::FileStorage::READ);
+
+  cv::Mat points3d, points2d;
+  storage["points_3d"] >> points3d;
+  storage["points_2d"] >> points2d;
+  storage["descriptors"] >> descriptors_;
+
+  points3d.copyTo(list_points3d_in_);
+  points2d.copyTo(list_points2d_in_);
+
+  storage.release();
 }
 
 

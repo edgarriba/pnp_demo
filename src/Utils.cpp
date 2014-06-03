@@ -165,7 +165,7 @@ void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints,
   cv::cvtColor( image, image_gray, CV_RGB2GRAY );
 
   /* ORB parameters */
-  int nfeatures = 5000;
+  int nfeatures = 1000;
   float scaleFactor = 1.2f;
   int nlevels = 8;
   int edgeThreshold = 31;
@@ -198,7 +198,7 @@ double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R)
 {
   double error;
   int  method = 0;  // 0 Francesc - 1 Luis - 2 Alex
-  if( method == 0 )
+  if( method == 3 )
   {
     // convert Rotation matrix to quaternion
     double qw_true = sqrt( 1 + R_true.at<double>(0,0) + R_true.at<double>(1,1) + R_true.at<double>(2,2) ) / 2;

@@ -71,13 +71,6 @@ void Mesh::load(const std::string path) {
   list_vertex_.clear();
   list_triangles_.clear();
 
-  // TODO: check path file to open different formats .ply .stl
-  /*
-   * if (path == .ply) then readPLY
-   * if (path == .stl) then readSTL
-   *
-   */
-
   // Read from .ply file
   csvReader.readPLY(list_vertex_, list_triangles_);
 

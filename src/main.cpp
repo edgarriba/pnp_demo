@@ -29,7 +29,7 @@
   std::string img_path = "../Data/resized_IMG_3875.JPG";
   std::string img_verification_path = "../Data/resized_IMG_3872.JPG";
   std::string ply_read_path = "../Data/box.ply";
-  std::string xyz_write_path = "../Data/point_cloud.xyz";
+  std::string write_path = "../Data/box.yml";
 
   // Boolean the know if the registration it's done
   bool end_registration = false;
@@ -211,7 +211,7 @@ int main(int, char**)
   std::vector<cv::Point3f> list_points3d = registration.get_points3d();
 
   // Estimate pose given the registered points
-  bool is_correspondence = pnp_registration.estimatePose(list_points3d, list_points2d, cv::EPNP);
+  bool is_correspondence = pnp_registration.estimatePose(list_points3d, list_points2d, cv::ITERATIVE);
   if ( is_correspondence )
   {
     std::cout << "Correspondence found" << std::endl;
@@ -270,7 +270,7 @@ int main(int, char**)
   }
 
   // save the model into a *.xyz file
-  model.save(xyz_write_path);
+  model.save(write_path);
 
   // Out image
   img_vis = img_in.clone();
@@ -378,7 +378,7 @@ int main(int, char**)
   list_points3d = registration.get_points3d();
 
   // Estimate pose given the registered points
-  is_correspondence = pnp_verification_gt.estimatePose(list_points3d, list_points2d, cv::EPNP);
+  is_correspondence = pnp_verification_gt.estimatePose(list_points3d, list_points2d, cv::ITERATIVE);
 
   std::vector<cv::Point2f> pts_2d_ground_truth = pnp_verification_gt.verify_points(&mesh);
   draw2DPoints(img_vis, pts_2d_ground_truth, green);
@@ -395,7 +395,7 @@ int main(int, char**)
    */
 
   /* ORB parameters */
-  int nfeatures = 5000;
+  int nfeatures = 1000;
   float scaleFactor = 1.2f;
   int nlevels = 8;
   int edgeThreshold = 31;
@@ -413,7 +413,9 @@ int main(int, char**)
    *
    *  */
 
-  //int normType = cv::NORM_HAMMING;
+  //int normType = cv::NORM_HAMMING2;
+
+
   int normType = cv::NORM_HAMMING;
   bool crossCheck = false;
   cv::BFMatcher matcher(normType, crossCheck);
@@ -464,9 +466,10 @@ int main(int, char**)
    list_points2d_scene_match.push_back(point2d_scene);
   }
 
-  // -- Step 6: Estimate the pose using RANSAC approach
+  // -- Step 6: Pose estimation using RANSAC approach
   cv::Mat inliers;
-  pnp_verification.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match, CV_P3P, inliers);
+  pnp_verification.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
+                                       CV_P3P, inliers );
 
   // -- Step 7: Catch the inliers keypoints
   std::vector<cv::DMatch> matches_inliers;
@@ -527,7 +530,7 @@ int main(int, char**)
   cv::Mat R = pnp_verification.get_R_matrix();
 
   double error_trans = get_translation_error(t_true, t);
-  double error_rot = get_rotation_error(R_true, R);
+  double error_rot = get_rotation_error(R_true, R)*180/CV_PI;
 
   std::cout << "Translation error: " << error_trans << std::endl;
   std::cout << "Rotation error: " << error_rot << std::endl;
@@ -536,7 +539,7 @@ int main(int, char**)
   cv::waitKey(0);
 
   // Close and Destroy Window
-  cv::destroyWindow("PNP VERIFICATION");
+  cv::destroyWindow("MODEL REGISTRATION 2");
 
 
   return -1;
@@ -568,11 +571,11 @@ int main(int, char**)
     std::vector<cv::KeyPoint> keypoints_scene;
     orb.detect( frame_gray, keypoints_scene );
 
-    //-- Step 2: Calculate descriptors (feature std::vectors)
+    //-- Step 2: Calculate descriptors
     cv::Mat descriptors_scene;
     orb.compute( frame_gray, keypoints_scene, descriptors_scene );
 
-    // -- Step 3: Match the found keypoints
+    // -- Step 3: Matching features
     std::vector<std::vector<cv::DMatch> > matches;
     matcher.knnMatch(descriptors_scene, matches, 2); // Find two nearest matches
 
@@ -653,6 +656,9 @@ int main(int, char**)
 
     drawText(frame_vis, text, green);
     drawText2(frame_vis, text2, red);
+
+    drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
+
 
     cv::imshow("REAL TIME DEMO", frame_vis);
   }

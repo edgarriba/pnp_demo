@@ -18,6 +18,7 @@ pnp_registration
 	src/Model.cpp
 	src/PnPProblem.cpp
 	src/Utils.cpp
+	src/RobustMatcher.cpp
 )
 
 add_executable( 
@@ -30,6 +31,7 @@ pnp_verification
 	src/Model.cpp
 	src/PnPProblem.cpp
 	src/Utils.cpp
+	src/RobustMatcher.cpp
 )
 
 add_executable( 
@@ -42,6 +44,7 @@ pnp_detection
 	src/Model.cpp
 	src/PnPProblem.cpp
 	src/Utils.cpp
+	src/RobustMatcher.cpp
 )
 
 target_link_libraries( pnp_registration ${OpenCV_LIBS} )

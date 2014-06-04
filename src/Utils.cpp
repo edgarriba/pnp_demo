@@ -165,7 +165,7 @@ void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints,
   cv::cvtColor( image, image_gray, CV_RGB2GRAY );
 
   /* ORB parameters */
-  int nfeatures = 1000;
+  int nfeatures = 5000;
   float scaleFactor = 1.2f;
   int nlevels = 8;
   int edgeThreshold = 31;
@@ -184,6 +184,72 @@ void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints,
 
 }
 
+// Clear matches for which NN ratio is > than threshold
+// return the number of removed points
+// (corresponding entries being cleared,
+// i.e. size will be 0)
+int ratioTest(std::vector<std::vector<cv::DMatch> > &matches, double ratio)
+{
+  int removed=0;
+  // for all matches
+  for ( std::vector<std::vector<cv::DMatch> >::iterator
+        matchIterator= matches.begin(); matchIterator!= matches.end(); ++matchIterator)
+  {
+    // if 2 NN has been identified
+    if (matchIterator->size() > 1)
+    {
+       // check distance ratio
+      if ((*matchIterator)[0].distance < ratio * (*matchIterator)[1].distance )
+      // if ((*matchIterator)[0].distance / (*matchIterator)[1].distance > ratio)
+       {
+          matchIterator->clear(); // remove match
+          removed++;
+       }
+    }
+    else
+    { // does not have 2 neighbours
+       matchIterator->clear(); // remove match
+       removed++;
+    }
+  }
+  return removed;
+}
+
+// Insert symmetrical matches in symMatches vector
+void symmetryTest( const std::vector<std::vector<cv::DMatch> >& matches1,
+                   const std::vector<std::vector<cv::DMatch> >& matches2,
+                   std::vector<cv::DMatch>& symMatches )
+{
+  // for all matches image 1 -> image 2
+  for (std::vector<std::vector<cv::DMatch> >::const_iterator
+      matchIterator1 = matches1.begin(); matchIterator1 != matches1.end(); ++matchIterator1)
+  {
+     // ignore deleted matches
+     if (matchIterator1->size() < 2)
+         continue;
+     // for all matches image 2 -> image 1
+     for (std::vector<std::vector<cv::DMatch> >::const_iterator
+         matchIterator2 = matches2.begin(); matchIterator2 != matches2.end(); ++matchIterator2)
+     {
+         // ignore deleted matches
+         if (matchIterator2->size() < 2)
+            continue;
+         // Match symmetry test
+         if ((*matchIterator1)[0].queryIdx ==
+             (*matchIterator2)[0].trainIdx &&
+             (*matchIterator2)[0].queryIdx ==
+             (*matchIterator1)[0].trainIdx) {
+             // add symmetrical match
+               symMatches.push_back(
+                 cv::DMatch((*matchIterator1)[0].queryIdx,
+                           (*matchIterator1)[0].trainIdx,
+                           (*matchIterator1)[0].distance));
+               break; // next match in image 1 -> image 2
+         }
+     }
+  }
+}
+
 bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2)
 {
   return ( (p1.x == p2.x) && (p1.y == p2.y) );
@@ -191,56 +257,55 @@ bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2)
 
 double get_translation_error(const cv::Mat &t_true, const cv::Mat &t)
 {
-  return cv::norm( t_true - t ) / cv::norm(t);
+  return cv::norm( t_true - t );
 }
 
 double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R)
 {
-  double error;
-  int  method = 0;  // 0 Francesc - 1 Luis - 2 Alex
-  if( method == 3 )
-  {
-    // convert Rotation matrix to quaternion
-    double qw_true = sqrt( 1 + R_true.at<double>(0,0) + R_true.at<double>(1,1) + R_true.at<double>(2,2) ) / 2;
-    double qw = sqrt( 1 + R.at<double>(0,0) + R.at<double>(1,1) + R.at<double>(2,2) ) / 2;
-    double qx_true = R_true.at<double>(2,1) - R_true.at<double>(1,2) / 4*qw_true;
-    double qx = (R.at<double>(2,1) - R.at<double>(1,2)) / 4*qw;
-    double qy_true = R_true.at<double>(0,2) - R_true.at<double>(2,0) / 4*qw_true;
-    double qy = (R.at<double>(0,2) - R.at<double>(2,0)) / 4*qw;
-    double qz_true = R_true.at<double>(1,0) - R_true.at<double>(0,1) / 4*qw_true;
-    double qz = (R.at<double>(1,0) - R.at<double>(0,1)) / 4*qw;
+  cv::Mat error_vec, error_mat;
+  error_mat = R_true * cv::Mat(R.inv()).mul(-1);
+  cv::Rodrigues(error_mat, error_vec);
 
-    cv::Mat q_true = cv::Mat::zeros(4, 1, cv::DataType<double>::type);
-    cv::Mat q = cv::Mat::zeros(4, 1, cv::DataType<double>::type);
-    q_true.at<double>(0) = qw_true;
-    q_true.at<double>(1) = qx_true;
-    q_true.at<double>(2) = qy_true;
-    q_true.at<double>(3) = qz_true;
-    q.at<double>(0) = qw;
-    q.at<double>(1) = qx;
-    q.at<double>(2) = qy;
-    q.at<double>(3) = qz;
-
-    error = cv::norm( q_true - q ) / cv::norm(q);
-  }
-  else if( method == 1 )
-  {
-    double error_max = 0;
-    for(int i = 0; i < 3; ++i)
-    {
-      cv::Mat tmp = R_true.col(i).t() * R;
-      double error_i = acos( tmp.at<double>(0) ) * 180 / CV_PI;
-      if( error_i > error_max ) error_max = error_i;
-    }
-    error = error_max;
-  }
-  else if( method == 2 )
-  {
-    cv::Mat error_vec, error_mat;
-    error_mat = R_true * cv::Mat(R.inv()).mul(-1);
-    cv::Rodrigues(error_mat, error_vec);
-    error = cv::norm(error_vec);
-  }
-  return error;
+  return cv::norm(error_vec);
 }
+
+cv::Point3f get_variance(const std::vector<cv::Point3f> list_points3d)
+{
+  cv::Point3f p_mean, p_var;
+
+  int n = list_points3d.size();
+  for(unsigned int i = 0; i < n; ++i)
+  {
+    p_mean.x += list_points3d[i].x;
+    p_mean.y += list_points3d[i].y;
+    p_mean.z += list_points3d[i].z;
+  }
+  p_mean.x /= n;
+  p_mean.y /= n;
+  p_mean.z /= n;
+
+  for(unsigned int i = 0; i < n; ++i)
+  {
+    p_var.x += list_points3d[i].x - p_mean.x ;
+    p_var.y += list_points3d[i].y - p_mean.y ;
+    p_var.z += list_points3d[i].z - p_mean.z ;
+  }
+  p_var.x /= n;
+  p_var.y /= n;
+  p_var.z /= n;
+
+  return p_var;
+
+}
+
+double get_ratio(const cv::Point3f p1, const cv::Point3f p2)
+{
+  double x = p1.x / p2.x;
+  double y = p1.y / p2.y;
+  double z = p1.z / p2.z;
+
+  return sqrt( x*x + y*y + z*z );
+}
+
+
 

@@ -20,13 +20,16 @@ public:
   std::vector<cv::Point2f> get_points2d_in() const { return list_points2d_in_; }
   std::vector<cv::Point2f> get_points2d_out() const { return list_points2d_out_; }
   std::vector<cv::Point3f> get_points3d() const { return list_points3d_in_; }
-
+  std::vector<cv::KeyPoint> get_keypoints() const { return list_keypoints_; }
   cv::Mat get_descriptors() const { return descriptors_; }
   int get_numDescriptors() const { return descriptors_.rows; }
+
 
   void add_correspondence(const cv::Point2f &point2d, const cv::Point3f &point3d);
   void add_outlier(const cv::Point2f &point2d);
   void add_descriptor(const cv::Mat &descriptor);
+  void add_keypoint(const cv::KeyPoint &kp);
+
 
   void save(const std::string path);
   void load(const std::string path);
@@ -35,6 +38,8 @@ public:
 private:
   /** The current number of correspondecnes */
   int n_correspondences_;
+  /** The list of 2D points on the model surface */
+  std::vector<cv::KeyPoint> list_keypoints_;
   /** The list of 2D points on the model surface */
   std::vector<cv::Point2f> list_points2d_in_;
   /** The list of 2D points outside the model surface */

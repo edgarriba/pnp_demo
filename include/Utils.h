@@ -43,10 +43,17 @@ std::vector<cv::Point2f> verification_points(PnPProblem *p);
 // Compute the ORB keypoints and descriptors of a given image
 void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors);
 
+int ratioTest(std::vector<std::vector<cv::DMatch> > &matches, double ratio);
+void symmetryTest( const std::vector<std::vector<cv::DMatch> >& matches1,
+                   const std::vector<std::vector<cv::DMatch> >& matches2,
+                   std::vector<cv::DMatch>& symMatches );
+
 bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2);
 
 double get_translation_error(const cv::Mat &t_true, const cv::Mat &t);
 double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R);
+cv::Point3f get_variance(const std::vector<cv::Point3f> list_points3d);
+double get_ratio(const cv::Point3f p1, const cv::Point3f p2);
 
 
 #endif /* UTILS_H_ */

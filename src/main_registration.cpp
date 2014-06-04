@@ -4,6 +4,7 @@
 #include "Mesh.h"
 #include "Model.h"
 #include "PnPProblem.h"
+#include "RobustMatcher.h"
 #include "ModelRegistration.h"
 #include "Utils.h"
 
@@ -91,6 +92,15 @@ int main(int, char**)
 
   // load a mesh given the *.ply file path
   mesh.load(ply_read_path);
+
+  // set parameters
+  int numKeyPoints = 5000;
+
+  //Instantiate robust matcher: detector, extractor, matcher
+  RobustMatcher rmatcher;
+  cv::FeatureDetector* detector = new cv::OrbFeatureDetector(numKeyPoints);
+  rmatcher.setFeatureDetector(detector);
+
 
   /*
    * GROUND TRUTH OF THE FIRST IMAGE
@@ -203,7 +213,8 @@ int main(int, char**)
   cv::Mat descriptors;
 
   // Compute keypoints and descriptors
-  computeKeyPoints(img_in, keypoints_model, descriptors);
+  rmatcher.computeKeyPoints(img_in, keypoints_model);
+  rmatcher.computeDescriptors(img_in, keypoints_model, descriptors);
 
   // Check if keypoints are on the surface of the registration image and add to the model
   for (unsigned int i = 0; i < keypoints_model.size(); ++i) {
@@ -214,6 +225,7 @@ int main(int, char**)
     {
         model.add_correspondence(point2d, point3d);
         model.add_descriptor(descriptors.row(i));
+        model.add_keypoint(keypoints_model[i]);
     }
     else
     {
@@ -256,5 +268,7 @@ int main(int, char**)
 
   // Close and Destroy Window
   cv::destroyWindow("MODEL REGISTRATION");
+
+  std::cout << "GOODBYE" << std::endl;
 
 }

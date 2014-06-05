@@ -65,8 +65,8 @@ void RobustMatcher::symmetryTest( const std::vector<std::vector<cv::DMatch> >& m
               // add symmetrical match
                 symMatches.push_back(
                   cv::DMatch((*matchIterator1)[0].queryIdx,
-                            (*matchIterator1)[0].trainIdx,
-                            (*matchIterator1)[0].distance));
+                             (*matchIterator1)[0].trainIdx,
+                             (*matchIterator1)[0].distance));
                 break; // next match in image 1 -> image 2
           }
       }
@@ -88,48 +88,26 @@ void RobustMatcher::robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& 
   std::vector<std::vector<cv::DMatch> > matches12, matches21;
 
   // 2a. From image 1 to image 2
-  matcher_->knnMatch(descriptors_model, descriptors_frame, matches12, 2); // return 2 nearest neighbours
+  matcher_->add(descriptors_model);
+  matcher_->train();
+  matcher_->knnMatch(descriptors_frame, matches12, 2); // return 2 nearest neighbours
 
   // 2b. From image 2 to image 1
-  matcher_->knnMatch(descriptors_frame, descriptors_model, matches21, 2); // return 2 nearest neighbours
+  matcher_->clear();
+  matcher_->add(descriptors_frame);
+  matcher_->train();
+  matcher_->knnMatch(descriptors_model, matches21, 2); // return 2 nearest neighbours
 
-  /*// 3. Remove matches for which NN ratio is > than threshold
+  // 3. Remove matches for which NN ratio is > than threshold
   // clean image 1 -> image 2 matches
   int removed1 = ratioTest(matches12);
   // clean image 2 -> image 1 matches
   int removed2 = ratioTest(matches21);
 
-  std::cout <<  "Removed 1: " << removed1 << std::endl;
-  std::cout <<  "Removed 2: " << removed2 << std::endl;
-
   // 4. Remove non-symmetrical matches
   std::vector<cv::DMatch> symMatches;
   symmetryTest(matches12, matches21, symMatches);
 
-  good_matches = symMatches;*/
-
-  good_matches.clear();
-  for( size_t m = 0; m < matches12.size(); m++ )
-  {
-      bool findCrossCheck = false;
-      for( size_t fk = 0; fk < matches12[m].size(); fk++ )
-      {
-          cv::DMatch forward = matches12[m][fk];
-
-          for( size_t bk = 0; bk < matches21[forward.trainIdx].size(); bk++ )
-          {
-            cv::DMatch backward = matches21[forward.trainIdx][bk];
-              if( backward.trainIdx == forward.queryIdx )
-              {
-                  good_matches.push_back(forward);
-                  findCrossCheck = true;
-                  break;
-              }
-          }
-          if( findCrossCheck ) break;
-      }
-  }
-
-  std::cout <<  "Filtered matches: " << good_matches.size() << std::endl;
+  good_matches = symMatches;
 
 }

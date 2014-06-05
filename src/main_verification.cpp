@@ -13,6 +13,8 @@
 #include "ModelRegistration.h"
 #include "Utils.h"
 
+#include "CsvWriter.h"
+
 
   /*
    * Set up the images paths
@@ -41,16 +43,6 @@
                             width/2,      // cx
                             height/2};    // cy
 
-
- /*
-   * Set up the intrinsic camera parameters: UVC WEBCAM
-   */
-  double f2 = 43;
-  double params_CANON2[] = { width*f2/sx,   // fx
-                             height*f2/sy,  // fy
-                             width/2,       // cx
-                             height/2};     // cy
-
   /*
    * Set up some basic colors
    */
@@ -68,7 +60,7 @@
   Mesh mesh;
   ModelRegistration registration;
   PnPProblem pnp_verification(params_CANON);
-  PnPProblem pnp_verification_gt(params_CANON2);
+  PnPProblem pnp_verification_gt(params_CANON);
 
 
 // Mouse events for model registration
@@ -120,6 +112,7 @@ int main(int, char**)
   rmatcher.setFeatureDetector(detector);
   rmatcher.setDescriptorExtractor(extractor);
   rmatcher.setDescriptorMatcher(matcher);
+  rmatcher.setRatio(0.80);
 
 
   /*
@@ -222,48 +215,13 @@ int main(int, char**)
 
   // Model variance
    cv::Point3f model_variance = get_variance(list_points3d_model);
-   std::cout <<  "Model variance: " << model_variance << std::endl;
 
-  // Matches for pose estimation
+  // Robust Match
   std::vector<cv::DMatch> good_matches;
   std::vector<cv::KeyPoint> keypoints_scene;
 
-  // Robust Match
   rmatcher.robustMatch(img_in2, good_matches, keypoints_scene, keypoints_model, descriptors_model);
-
-
-
-  /*// CREATE MATCHER
-  int normType = cv::NORM_HAMMING;
-  bool crossCheck = false;
-  cv::BFMatcher matcher(normType, crossCheck);
-
-  //-- Step 1 & 2: Calculate keypoints and descriptors
-  std::vector<cv::KeyPoint> keypoints_model, keypoints_scene;
-  cv::Mat descriptors_scene;
-  computeKeyPoints(img_in, keypoints_model, descriptors_model);
-  computeKeyPoints(img_in2, keypoints_scene, descriptors_scene);
-
-  // -- Step 3: Matching features
-  std::vector<std::vector<cv::DMatch> > matches1, matches2;
-  matcher.knnMatch(descriptors_model, descriptors_scene, matches1, 2); // Find two nearest matches
-  matcher.knnMatch(descriptors_scene, descriptors_model, matches2, 2); // Find two nearest matches
-
-  // -- Step 4.1: Ratio test
-  double ratio = 0.8;
-  int removed1 = ratioTest(matches1, ratio);
-  int removed2 = ratioTest(matches2, ratio);
-  std::cout <<  "Ratio test 1: " << removed1 << std::endl;
-  std::cout <<  "Ratio test 2: " << removed2 << std::endl;
-
-  // -- Step 4.2: Symmetric test
-  std::vector<cv::DMatch> good_matches;
-  //symmetryTest(matches1, matches2, good_matches);
-  for (int var = 0; var < matches1.size(); ++var) {
-    good_matches.push_back(matches1[var][0]);
-  }*/
-
-  std::cout <<  "Symmetry test: " << good_matches.size() << std::endl;
+  std::cout <<  "Filteres points: " << good_matches.size() << std::endl;
 
   cv::Mat inliers_idx;
   std::vector<cv::DMatch> matches_inliers;
@@ -283,20 +241,9 @@ int main(int, char**)
       list_points3d_model_match.push_back(point3d_model);
       list_points2d_scene_match.push_back(point2d_scene);
     }
-    std::cout <<  "Points2d match: " << list_points2d_scene_match.size() << std::endl;
-    std::cout <<  "Points3d match: " << list_points3d_model_match.size() << std::endl;
-    std::cout <<  "Good matches: " << good_matches.size() << std::endl;
-
-    // Switched the order due to a opencv bug
-    cv::drawMatches( img_in, keypoints_model,  // model image
-                     img_in2, keypoints_scene, // scene image
-                     good_matches, img_vis, red, blue);
-    cv::imshow("MODEL GROUND TRUTH", img_vis);
-    cv::waitKey(0);
-
 
     // -- Step 6: Estimate the pose using RANSAC approach
-    pnp_verification.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match, cv::ITERATIVE, inliers_idx);
+    pnp_verification.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match, cv::P3P, inliers_idx);
     std::cout <<  "Num. inliers: " << inliers_idx.rows << std::endl;
 
     // -- Step 7: Catch the inliers keypoints
@@ -320,19 +267,16 @@ int main(int, char**)
       keypoints_inliers.push_back(keypoints_scene[good_matches[match_index].queryIdx]);
     }
 
-    // -- Step 8: Back project
-    cv::Mat P_mat = pnp_verification.get_P_matrix();
-    //std::cout << "P_matrix:" << std::endl << P_mat << std::endl;
-
-    // -- Step 9: Calculate covariance
+    // -- Step 8: Calculate covariance
     cv::Point3f detection_variance = get_variance(list_points3d_inliers);
-    std::cout << "Variance: " <<  detection_variance << std::endl;
-    std::cout << "Ratio: " <<  get_ratio(detection_variance, model_variance) << std::endl;
+    double confidence = get_ratio(detection_variance, model_variance);
+    std::cout << "Detection Confidence: " << confidence << std::endl;
 
-    int min_inliers = 0;
-    if( inliers_idx.rows >= min_inliers )
+    // -- Step 9: Draw pose
+    int min_inliers = 10;
+    double min_confidence = 0.25;
+    if( inliers_idx.rows >= min_inliers && confidence > min_confidence)
     {
-      // Draw pose
       double l = 5;
       std::vector<cv::Point2f> pose_points2d;
       pose_points2d.push_back(pnp_verification.backproject3DPoint(cv::Point3f(0,0,0)));
@@ -342,6 +286,8 @@ int main(int, char**)
       draw3DCoordinateAxes(img_in2, pose_points2d);
 
       drawObjectMesh(img_in2, &mesh, &pnp_verification, green);
+      drawObjectMesh(img_in2, &mesh, &pnp_verification_gt, yellow);
+
     }
 
   }
@@ -349,7 +295,9 @@ int main(int, char**)
   // -- Step X: Draw correspondences
 
   // Switched the order due to a opencv bug
-  cv::drawMatches(img_in2, keypoints_scene, img_in, keypoints_model, matches_inliers, img_vis, red, blue);
+  cv::drawMatches( img_in2, keypoints_scene, // scene image
+                   img_in, keypoints_model,  // model image
+                   matches_inliers, img_vis, red, blue);
 
   // -- Step X: Draw some text for debugging purpose
 

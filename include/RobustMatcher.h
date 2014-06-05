@@ -72,16 +72,16 @@ public:
       std::vector<cv::KeyPoint>& keypoints_frame, const std::vector<cv::KeyPoint>& keypoints_model, const cv::Mat& descriptors_model );
 
 private:
-     // pointer to the feature point detector object
-     cv::FeatureDetector* detector_;
-     // pointer to the feature descriptor extractor object
-     cv::DescriptorExtractor* extractor_;
-     // pointer to the matcher object
-     cv::DescriptorMatcher* matcher_;
-     float ratio_; // max ratio between 1st and 2nd NN
-     bool refineF_; // if true will refine the F matrix
-     double distance_; // min distance to epipolar
-     double confidence_; // confidence level (probability)
+  // pointer to the feature point detector object
+  cv::FeatureDetector* detector_;
+  // pointer to the feature descriptor extractor object
+  cv::DescriptorExtractor* extractor_;
+  // pointer to the matcher object
+  cv::DescriptorMatcher* matcher_;
+  float ratio_; // max ratio between 1st and 2nd NN
+  bool refineF_; // if true will refine the F matrix
+  double distance_; // min distance to epipolar
+  double confidence_; // confidence level (probability)
 };
 
 #endif /* ROBUSTMATCHER_H_ */

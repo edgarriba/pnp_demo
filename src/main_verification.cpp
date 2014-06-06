@@ -35,7 +35,7 @@
   /*
    * Set up the intrinsic camera parameters: CANON
    */
-  double f = 55;
+  double f = 43;
   double sx = 22.3, sy = 14.9;
   double width = 718, height = 480;
   double params_CANON[] = { width*f/sx,   // fx
@@ -102,7 +102,7 @@ int main(int, char**)
   model.load(yml_read_path);
 
   // set parameters
-  int numKeyPoints = 5000;
+  int numKeyPoints = 10000;
 
   //Instantiate robust matcher: detector, extractor, matcher
   RobustMatcher rmatcher;
@@ -214,7 +214,7 @@ int main(int, char**)
   cv::Mat descriptors_model = model.get_descriptors();
 
   // Model variance
-   cv::Point3f model_variance = get_variance(list_points3d_model);
+  double model_variance = get_variance(list_points3d_model);
 
   // Robust Match
   std::vector<cv::DMatch> good_matches;
@@ -243,7 +243,12 @@ int main(int, char**)
     }
 
     // -- Step 6: Estimate the pose using RANSAC approach
-    pnp_verification.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match, cv::P3P, inliers_idx);
+    int iterationsCount = 2500;
+    float reprojectionError = 3.0;
+    int minInliersCount = 20;
+    pnp_verification.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
+                                         cv::ITERATIVE, inliers_idx,
+                                         iterationsCount, reprojectionError, minInliersCount );
     std::cout <<  "Num. inliers: " << inliers_idx.rows << std::endl;
 
     // -- Step 7: Catch the inliers keypoints
@@ -268,14 +273,14 @@ int main(int, char**)
     }
 
     // -- Step 8: Calculate covariance
-    cv::Point3f detection_variance = get_variance(list_points3d_inliers);
-    double confidence = get_ratio(detection_variance, model_variance);
+    double detection_variance = get_variance(list_points3d_inliers);
+    double confidence = detection_variance/model_variance;
     std::cout << "Detection Confidence: " << confidence << std::endl;
 
     // -- Step 9: Draw pose
-    int min_inliers = 10;
+    int min_inliers = 5;
     double min_confidence = 0.25;
-    if( inliers_idx.rows >= min_inliers && confidence > min_confidence)
+    if( inliers_idx.rows >= min_inliers)
     {
       double l = 5;
       std::vector<cv::Point2f> pose_points2d;

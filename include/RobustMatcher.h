@@ -23,6 +23,7 @@ public:
     detector_ = new cv::OrbFeatureDetector();
     extractor_ = new cv::OrbDescriptorExtractor();
     matcher_ = new cv::BFMatcher(cv::NORM_HAMMING, false);
+
   }
   virtual ~RobustMatcher();
 
@@ -55,6 +56,7 @@ public:
   //Set ratio
   void setRatio( float rat) { ratio_ = rat; }
 
+
   // Clear matches for which NN ratio is > than threshold
   // return the number of removed points
   // (corresponding entries being cleared,
@@ -69,7 +71,20 @@ public:
   // Match feature points using symmetry test and RANSAC
   // returns fundemental matrix
   void robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
-      std::vector<cv::KeyPoint>& keypoints_frame, const std::vector<cv::KeyPoint>& keypoints_model, const cv::Mat& descriptors_model );
+                    std::vector<cv::KeyPoint>& keypoints_frame,
+                    const std::vector<cv::KeyPoint>& keypoints_model,
+                    const cv::Mat& descriptors_model );
+
+  void crossCheckMatching ( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+                            std::vector<cv::KeyPoint>& keypoints_frame,
+                            const std::vector<cv::KeyPoint>& keypoints_model,
+                            const cv::Mat& descriptors_model );
+
+  void simpleMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+                      std::vector<cv::KeyPoint>& keypoints_frame,
+                      const std::vector<cv::KeyPoint>& keypoints_model,
+                      const cv::Mat& descriptors_model );
+
 
 private:
   // pointer to the feature point detector object
@@ -78,6 +93,7 @@ private:
   cv::DescriptorExtractor* extractor_;
   // pointer to the matcher object
   cv::DescriptorMatcher* matcher_;
+
   float ratio_; // max ratio between 1st and 2nd NN
   bool refineF_; // if true will refine the F matrix
   double distance_; // min distance to epipolar

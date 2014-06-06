@@ -80,6 +80,26 @@ PnPProblem::~PnPProblem()
   // TODO Auto-generated destructor stub
 }
 
+void PnPProblem::set_P_matrix( const cv::Mat &R_matrix, const cv::Mat &t_matrix)
+{
+  _R_matrix = R_matrix;
+  _t_matrix = t_matrix;
+
+  // Rotation-Translation Matrix Definition
+  _P_matrix.at<double>(0,0) = _R_matrix.at<double>(0,0);
+  _P_matrix.at<double>(0,1) = _R_matrix.at<double>(0,1);
+  _P_matrix.at<double>(0,2) = _R_matrix.at<double>(0,2);
+  _P_matrix.at<double>(1,0) = _R_matrix.at<double>(1,0);
+  _P_matrix.at<double>(1,1) = _R_matrix.at<double>(1,1);
+  _P_matrix.at<double>(1,2) = _R_matrix.at<double>(1,2);
+  _P_matrix.at<double>(2,0) = _R_matrix.at<double>(2,0);
+  _P_matrix.at<double>(2,1) = _R_matrix.at<double>(2,1);
+  _P_matrix.at<double>(0,3) = _t_matrix.at<double>(0);
+  _P_matrix.at<double>(1,3) = _t_matrix.at<double>(1);
+  _P_matrix.at<double>(2,3) = _t_matrix.at<double>(2);
+}
+
+
 // Estimate the pose given a list of 2D/3D correspondences and the method to use
 bool PnPProblem::estimatePose(const std::vector<cv::Point3f> &list_points3d, const std::vector<cv::Point2f> &list_points2d, int flags)
 {
@@ -119,7 +139,9 @@ bool PnPProblem::estimatePose(const std::vector<cv::Point3f> &list_points3d, con
 }
 
 // Estimate the pose given a list of 2D/3D correspondences with RANSAC and the method to use
-void PnPProblem::estimatePoseRANSAC(const std::vector<cv::Point3f> &list_points3d, const std::vector<cv::Point2f> &list_points2d, int flags, cv::Mat &inliers)
+void PnPProblem::estimatePoseRANSAC(const std::vector<cv::Point3f> &list_points3d, const std::vector<cv::Point2f> &list_points2d,
+                                    int flags, cv::Mat &inliers,
+                                    int iterationsCount, double reprojectionError, int minInliersCount )
 {
   cv::Mat distCoeffs = cv::Mat::zeros(4, 1, cv::DataType<double>::type);
   cv::Mat rvec = cv::Mat::zeros(3, 1, cv::DataType<double>::type);
@@ -127,9 +149,11 @@ void PnPProblem::estimatePoseRANSAC(const std::vector<cv::Point3f> &list_points3
 
   /* RANSAC parameters */
   bool useExtrinsicGuess = false;
-  int iterationsCount = 1000; //100 // increase
-  float reprojectionError = 3.0; //8.0 // 2.0-3.0
+/*
+  int iterationsCount = 100; //100 // increase
+  float reprojectionError = 3; //8.0 // 2.0-3.0
   int minInliersCount = 20; //100 // 20-30
+*/
 
   // Pose estimation
   cv::solvePnPRansac( list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec,

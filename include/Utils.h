@@ -18,6 +18,8 @@ void drawQuestion(cv::Mat image, cv::Point3f point, cv::Scalar color);
 // Draw a text in the left of the image
 void drawText(cv::Mat image, std::string text, cv::Scalar color);
 void drawText2(cv::Mat image, std::string text, cv::Scalar color);
+void drawFPS(cv::Mat image, double fps, cv::Scalar color);
+void drawConfidence(cv::Mat image, double confidence, cv::Scalar color);
 
 // Draw a text with the number of registered points
 void drawCounter(cv::Mat image, int n, int n_max, cv::Scalar color);
@@ -40,20 +42,12 @@ void draw3DCoordinateAxes(cv::Mat image, const std::vector<cv::Point2f> &list_po
 // Compute the 2D points with the esticv::Mated pose
 std::vector<cv::Point2f> verification_points(PnPProblem *p);
 
-// Compute the ORB keypoints and descriptors of a given image
-void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors);
-
-int ratioTest(std::vector<std::vector<cv::DMatch> > &matches, double ratio);
-void symmetryTest( const std::vector<std::vector<cv::DMatch> >& matches1,
-                   const std::vector<std::vector<cv::DMatch> >& matches2,
-                   std::vector<cv::DMatch>& symMatches );
-
 bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2);
 
 double get_translation_error(const cv::Mat &t_true, const cv::Mat &t);
 double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R);
-cv::Point3f get_variance(const std::vector<cv::Point3f> list_points3d);
-double get_ratio(const cv::Point3f p1, const cv::Point3f p2);
-
+double get_variance(const std::vector<cv::Point3f> list_points3d);
+cv::Mat rot2quat(cv::Mat &rotationMatrix);
+cv::Mat quat2rot(cv::Mat &q);
 
 #endif /* UTILS_H_ */

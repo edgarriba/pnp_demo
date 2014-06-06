@@ -50,6 +50,22 @@ void drawText2(cv::Mat image, std::string text, cv::Scalar color)
   cv::putText(image, text, cv::Point(25,75), fontFace, fontScale, color, thickness_font, 8);
 }
 
+// Draw a text with the frame ratio
+void drawFPS(cv::Mat image, double fps, cv::Scalar color)
+{
+  std::string fps_str = boost::lexical_cast< std::string >((int)fps);
+  std::string text = fps_str + " FPS";
+  cv::putText(image, text, cv::Point(500,50), fontFace, fontScale, color, thickness_font, 8);
+}
+
+// Draw a text with the frame ratio
+void drawConfidence(cv::Mat image, double confidence, cv::Scalar color)
+{
+  std::string conf_str = boost::lexical_cast< std::string >((int)confidence);
+  std::string text = conf_str + " %";
+  cv::putText(image, text, cv::Point(500,75), fontFace, fontScale, color, thickness_font, 8);
+}
+
 // Draw a text with the number of entered points
 void drawCounter(cv::Mat image, int n, int n_max, cv::Scalar color)
 {
@@ -157,99 +173,6 @@ void drawObjectMesh(cv::Mat image, const Mesh *mesh, PnPProblem *pnpProblem, cv:
   }
 }
 
-// Compute the ORB keypoints and descriptors of a given image
-void computeKeyPoints(const cv::Mat image, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors)
-{
-
-  cv::Mat image_gray;
-  cv::cvtColor( image, image_gray, CV_RGB2GRAY );
-
-  /* ORB parameters */
-  int nfeatures = 5000;
-  float scaleFactor = 1.2f;
-  int nlevels = 8;
-  int edgeThreshold = 31;
-  int firstLevel = 0;
-  int WTA_K = 2;
-  int scoreType = cv::ORB::HARRIS_SCORE;
-  int patchSize = 31;
-
-  cv::ORB orb(nfeatures, scaleFactor, nlevels, edgeThreshold, firstLevel, WTA_K, scoreType, patchSize);
-
-  //-- Step 1: Calculate keypoints
-  orb.detect( image_gray, keypoints );
-
-  //-- Step 2: Calculate descriptors (feature vectors)
-  orb.compute( image_gray, keypoints, descriptors );
-
-}
-
-// Clear matches for which NN ratio is > than threshold
-// return the number of removed points
-// (corresponding entries being cleared,
-// i.e. size will be 0)
-int ratioTest(std::vector<std::vector<cv::DMatch> > &matches, double ratio)
-{
-  int removed=0;
-  // for all matches
-  for ( std::vector<std::vector<cv::DMatch> >::iterator
-        matchIterator= matches.begin(); matchIterator!= matches.end(); ++matchIterator)
-  {
-    // if 2 NN has been identified
-    if (matchIterator->size() > 1)
-    {
-       // check distance ratio
-      if ((*matchIterator)[0].distance < ratio * (*matchIterator)[1].distance )
-      // if ((*matchIterator)[0].distance / (*matchIterator)[1].distance > ratio)
-       {
-          matchIterator->clear(); // remove match
-          removed++;
-       }
-    }
-    else
-    { // does not have 2 neighbours
-       matchIterator->clear(); // remove match
-       removed++;
-    }
-  }
-  return removed;
-}
-
-// Insert symmetrical matches in symMatches vector
-void symmetryTest( const std::vector<std::vector<cv::DMatch> >& matches1,
-                   const std::vector<std::vector<cv::DMatch> >& matches2,
-                   std::vector<cv::DMatch>& symMatches )
-{
-  // for all matches image 1 -> image 2
-  for (std::vector<std::vector<cv::DMatch> >::const_iterator
-      matchIterator1 = matches1.begin(); matchIterator1 != matches1.end(); ++matchIterator1)
-  {
-     // ignore deleted matches
-     if (matchIterator1->size() < 2)
-         continue;
-     // for all matches image 2 -> image 1
-     for (std::vector<std::vector<cv::DMatch> >::const_iterator
-         matchIterator2 = matches2.begin(); matchIterator2 != matches2.end(); ++matchIterator2)
-     {
-         // ignore deleted matches
-         if (matchIterator2->size() < 2)
-            continue;
-         // Match symmetry test
-         if ((*matchIterator1)[0].queryIdx ==
-             (*matchIterator2)[0].trainIdx &&
-             (*matchIterator2)[0].queryIdx ==
-             (*matchIterator1)[0].trainIdx) {
-             // add symmetrical match
-               symMatches.push_back(
-                 cv::DMatch((*matchIterator1)[0].queryIdx,
-                           (*matchIterator1)[0].trainIdx,
-                           (*matchIterator1)[0].distance));
-               break; // next match in image 1 -> image 2
-         }
-     }
-  }
-}
-
 bool equal_point(const cv::Point2f &p1, const cv::Point2f &p2)
 {
   return ( (p1.x == p2.x) && (p1.y == p2.y) );
@@ -269,7 +192,7 @@ double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R)
   return cv::norm(error_vec);
 }
 
-cv::Point3f get_variance(const std::vector<cv::Point3f> list_points3d)
+double get_variance(const std::vector<cv::Point3f> list_points3d)
 {
   cv::Point3f p_mean, p_var;
 
@@ -294,18 +217,129 @@ cv::Point3f get_variance(const std::vector<cv::Point3f> list_points3d)
   p_var.y /= n;
   p_var.z /= n;
 
-  return p_var;
+  // norm
+  return sqrt( pow(p_var.x, 2) + pow(p_var.y, 2) + pow(p_var.z, 2) );
 
 }
 
-double get_ratio(const cv::Point3f p1, const cv::Point3f p2)
+// w is equal to angular_velocity*time_between_frames
+cv::Mat rot2quat(cv::Mat &rotationMatrix)
 {
-  double x = p1.x / p2.x;
-  double y = p1.y / p2.y;
-  double z = p1.z / p2.z;
+  cv::Mat q(4, 1, CV_64F);
+  double q1, q2, q3, q4;
 
-  return sqrt( x*x + y*y + z*z );
+  double m00 = rotationMatrix.at<double>(0,0);
+  double m01 = rotationMatrix.at<double>(0,1);
+  double m02 = rotationMatrix.at<double>(0,2);
+  double m10 = rotationMatrix.at<double>(1,0);
+  double m11 = rotationMatrix.at<double>(1,1);
+  double m12 = rotationMatrix.at<double>(1,2);
+  double m20 = rotationMatrix.at<double>(2,0);
+  double m21 = rotationMatrix.at<double>(2,1);
+  double m22 = rotationMatrix.at<double>(2,2);
+
+  /*double q4 = 0.5 * sqrt( 1 + m00 + m11 + m22 );
+  double q1 = 1/(4*q4) * ( m21 + m12 );
+  double q2 = 1/(4*q4) * ( m02 + m20 );
+  double q3 = 1/(4*q4) * ( m10 + m01 );*/
+
+
+  double t = m00 + m11 + m22;
+  double s, r;
+  if( t > 0 )
+  {
+    s = sqrt( 1 + t );
+    r = 0.5/s;
+    q1 = 0.5*s;
+    q2 = (m21-m12)*r;
+    q3 = (m02-m20)*r;
+    q4 = (m10-m01)*r;
+  }
+  else //Find the largest diagonal element
+  {
+    double big = std::max(m00, m11);
+    big = std::max(big, m22);
+    if( big == m00 )
+    {
+      s = sqrt(1+m00-m11-m22);
+      r = 0.5/s;
+      q1 = (m21-m12)*r;
+      q2 = 0.5*s;
+      q3 = (m10-m01)*r;
+      q4 = (m02-m20)*r;
+    }
+    else if ( big == m11 )
+    {
+      s = sqrt(1-m00+m11-m22);
+      r = 0.5/s;
+      q1 = (m02-m20)*r;
+      q2 = (m10+m01)*r;
+      q3 = 0.5*s;
+      q4 = (m21+m12)*r;
+    }
+    else if ( big == m22)
+    {
+      s = sqrt(1-m00-m11+m22);
+      r = 0.5/s;
+      q1 = (m10-m01)*r;
+      q2 = (m02+m20)*r;
+      q3 = (m21+m12)*r;
+      q4 = 0.5*s;
+    }
+
+  }
+
+  // Normalisation
+  //double f = sqrt(q1*q1 + q2*q2 + q3*q3 + q4*q4);
+  double f = 1;
+
+  q1 /= f;
+  q2 /= f;
+  q3 /= f;
+  q4 /= f;
+
+  q.at<double>(0,0) = q1;
+  q.at<double>(0,1) = q2;
+  q.at<double>(0,2) = q3;
+  q.at<double>(0,3) = q4;
+
+  return q;
 }
 
+// w is equal to angular_velocity*time_between_frames
+cv::Mat quat2rot(cv::Mat &q)
+{
+  cv::Mat rotationMatrix(3, 3, CV_64F);
 
+  double w = q.at<double>(0);
+  double x = q.at<double>(1);
+  double y = q.at<double>(2);
+  double z = q.at<double>(3);
+
+  double n = w * w + x * x + y * y + z * z;
+  double s = 0;
+  if(n != 0) s = 2/n;
+
+  double wx = s * w * x;
+  double wy = s * w * y;
+  double wz = s * w * z;
+  double xx = s * x * x;
+  double xy = s * x * y;
+  double xz = s * x * z;
+  double yy = s * y * y;
+  double yz = s * y * z;
+  double zz = s * z * z;
+
+  rotationMatrix.at<double>(0,0) = 1 - ( yy + zz );
+  rotationMatrix.at<double>(0,1) = xy - wz;
+  rotationMatrix.at<double>(0,2) = xz + wy;
+  rotationMatrix.at<double>(1,0) = xy + wz;
+  rotationMatrix.at<double>(1,1) = 1 - ( xx + zz );
+  rotationMatrix.at<double>(1,2) = yz - wx;
+  rotationMatrix.at<double>(2,0) = xz - wy;
+  rotationMatrix.at<double>(2,1) = yz + wx;
+  rotationMatrix.at<double>(2,2) = 1 - ( xx + yy );
+
+  return rotationMatrix;
+}
 

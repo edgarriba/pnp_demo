@@ -3,6 +3,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
@@ -16,6 +17,7 @@
 #include "Utils.h"
 
 std::string img_path = "../Data/resized_IMG_3875.JPG";
+std::string video_path = "../Data/box.mp4";
 std::string ply_read_path = "../Data/box.ply";
 std::string yml_read_path = "../Data/box.yml";
 
@@ -40,16 +42,16 @@ cv::Scalar yellow(0,255,255);
 
 
 RobustMatcher rmatcher;
-int numKeyPoints = 5000;
+int numKeyPoints = 10000;
 int ratio = 80;
 
 // RANSAC
 int iterationsCount = 1000; //100 // increase
-int reprojectionError = 60; //8.0 // 2.0-3.0
-int minInliersCount = 100; //100 // 20-30
+int reprojectionError = 30; //8.0 // 2.0-3.0
+int minInliersCount = 30; //100 // 20-30
 
-int min_inliers = 20;
-int min_confidence = 30;
+int min_inliers = 0; // 20
+int min_confidence = 0; // 30
 
 
 void onRatioTest( int, void* )
@@ -86,18 +88,22 @@ int main(int, char**)
   rmatcher.setRatio(ratio);
 
   // Instantiate Kalman Filter
+
   int dynamicsParams = 7;
   int measurementParams = 7;
+
   cv::KalmanFilter KF;
   cv::Mat measurement = cv::Mat_<float>::zeros(measurementParams,1);
   measurement.setTo(cv::Scalar(0));
 
   //init Kalman
   KF.init(dynamicsParams, measurementParams);
+
   cv::setIdentity(KF.measurementMatrix);
   cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));
   cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-1));
   cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));
+
   std::cout << "A " << std::endl << KF.transitionMatrix << std::endl;
   std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;
 
@@ -137,7 +143,8 @@ int main(int, char**)
   cv::createTrackbar("Pose Inliers", "REAL TIME DEMO", &min_inliers, 200);
   cv::createTrackbar("Pose Confidence", "REAL TIME DEMO", &min_confidence, 100);
 
-  cv::VideoCapture cap(1); // open the default camera
+  //cv::VideoCapture cap(0); // open the default camera
+  cv::VideoCapture cap("../Data/box.mp4"); // open the recorded video
   if(!cap.isOpened())  // check if we succeeded
       return -1;
 
@@ -157,7 +164,7 @@ int main(int, char**)
   time(&start);
 
   // Loop videostream
-  while( cv::waitKey(30) < 0)
+  for(;;)
   {
     cv::Mat frame, frame_vis;
     cap >> frame; // get a new frame from camera
@@ -168,7 +175,7 @@ int main(int, char**)
     std::vector<cv::KeyPoint> keypoints_scene;
 
     //rmatcher.simpleMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
-    //rmatcher.crossCheckMatching(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
+    //rmatcher.crossCheckMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
     rmatcher.robustMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
 
     cv::Mat inliers_idx;
@@ -219,7 +226,7 @@ int main(int, char**)
       // -- Step 8: Calculate covariance
       double detection_variance = get_variance(list_points3d_inliers);
       double confidence = (detection_variance/model_variance)*100;
-      drawConfidence(frame, confidence, yellow);
+      drawConfidence(frame_vis, confidence, yellow);
 
       // -- Step 9: Draw pose
       if( !isnan(confidence) && inliers_idx.rows >= min_inliers && confidence > min_confidence)
@@ -232,7 +239,7 @@ int main(int, char**)
         pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,l)));
         draw3DCoordinateAxes(frame, pose_points2d);
 
-        drawObjectMesh(frame, &mesh, &pnp_detection, green);
+        drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
 
 
         // -- Step 10: Kalman Filter
@@ -283,7 +290,7 @@ int main(int, char**)
 
     }
 
-    drawObjectMesh(frame, &mesh, &pnp_detection_est, yellow);
+    drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
 
     // FRAME RATE
 
@@ -296,15 +303,15 @@ int main(int, char**)
 
     fps = counter / sec;
 
-    drawFPS(frame, fps, yellow); // frame ratio
+    drawFPS(frame_vis, fps, yellow); // frame ratio
 
 
     // -- Step X: Draw correspondences
 
     // Switched the order due to a opencv bug
-    cv::drawMatches( frame, keypoints_scene, // scene image
-                     img_in, keypoints_model,  // model image
-                     matches_inliers, frame_vis, red, blue);
+    //cv::drawMatches( img_in, keypoints_model,  // model image
+    //                 frame, keypoints_scene, // scene image
+    //                 matches_inliers, frame_vis, red, blue);
 
     // -- Step X: Draw some text for debugging purpose
 
@@ -321,7 +328,7 @@ int main(int, char**)
     drawText2(frame_vis, text2, red);
 
     cv::imshow("REAL TIME DEMO", frame_vis);
-
+    if(cv::waitKey(30) >= 0) break;
   }
 
   // Close and Destroy Window

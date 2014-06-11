@@ -6,7 +6,9 @@
  */
 
 #include "RobustMatcher.h"
+#include <time.h>
 
+#include <opencv2/features2d/features2d.hpp>
 
 RobustMatcher::~RobustMatcher() {
   // TODO Auto-generated destructor stub
@@ -73,12 +75,16 @@ void RobustMatcher::symmetryTest( const std::vector<std::vector<cv::DMatch> >& m
    }
 }
 
-void RobustMatcher::crossCheckMatching( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+void RobustMatcher::crossCheckMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                          std::vector<cv::KeyPoint>& keypoints_frame,
                          const std::vector<cv::KeyPoint>& keypoints_model,
                          const cv::Mat& descriptors_model )
 {
     good_matches.clear();
+
+    double tstart, tstop, ttime;
+
+    tstart = (double)clock()/CLOCKS_PER_SEC;
 
     // 1a. Detection of the SURF features
     this->computeKeyPoints(frame, keypoints_frame);
@@ -87,6 +93,11 @@ void RobustMatcher::crossCheckMatching( const cv::Mat& frame, std::vector<cv::DM
     cv::Mat descriptors_frame;
     this->computeDescriptors(frame, keypoints_frame, descriptors_frame);
 
+    tstop = (double)clock()/CLOCKS_PER_SEC;
+    ttime = tstop-tstart; /*ttime is how long your code run */
+    std::cout << "Time KP: " << ttime*1000 << "ms" << std::endl;
+
+    tstart = (double)clock()/CLOCKS_PER_SEC;
 
     // 2. Match the two image descriptors
     std::vector<std::vector<cv::DMatch> > matches12, matches21;
@@ -94,14 +105,18 @@ void RobustMatcher::crossCheckMatching( const cv::Mat& frame, std::vector<cv::DM
     // 2a. From image 1 to image 2
     matcher_->clear();
     matcher_->add(descriptors_model);
-    matcher_->train();
     matcher_->knnMatch(descriptors_frame, matches12, 2); // return 2 nearest neighbours
 
     // 2b. From image 2 to image 1
     matcher_->clear();
     matcher_->add(descriptors_frame);
-    matcher_->train();
     matcher_->knnMatch(descriptors_model, matches21, 2); // return 2 nearest neighbours
+
+    tstop = (double)clock()/CLOCKS_PER_SEC;
+    ttime = tstop-tstart; /*ttime is how long your code run */
+    std::cout << "Time knn Matching: " << ttime*1000 << "ms" << std::endl;
+
+    tstart = (double)clock()/CLOCKS_PER_SEC;
 
     for( size_t m = 0; m < matches12.size(); m++ )
     {
@@ -123,33 +138,53 @@ void RobustMatcher::crossCheckMatching( const cv::Mat& frame, std::vector<cv::DM
             if( findCrossCheck ) break;
         }
     }
+
+    tstop = (double)clock()/CLOCKS_PER_SEC;
+    ttime = tstop-tstart; /*ttime is how long your code run */
+    std::cout << "Time cross: " << ttime*1000 << "ms" << std::endl;
 }
 
 void RobustMatcher::robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
               std::vector<cv::KeyPoint>& keypoints_frame, const std::vector<cv::KeyPoint>& keypoints_model, const cv::Mat& descriptors_model )
 {
+  double tstart, tstop, ttime;
+
+  tstart = (double)clock()/CLOCKS_PER_SEC;
 
   // 1a. Detection of the SURF features
   this->computeKeyPoints(frame, keypoints_frame);
 
-  // 1b. Extraction of the SURF descriptors
+   // 1b. Extraction of the SURF descriptors
   cv::Mat descriptors_frame;
   this->computeDescriptors(frame, keypoints_frame, descriptors_frame);
+
+  tstop = (double)clock()/CLOCKS_PER_SEC;
+  ttime = tstop-tstart; /*ttime is how long your code run */
+  std::cout << "Time KP: " << ttime*1000 << "ms" << std::endl;
 
   // 2. Match the two image descriptors
   std::vector<std::vector<cv::DMatch> > matches12, matches21;
 
+  tstart = (double)clock()/CLOCKS_PER_SEC;
+
+ // descriptors_frame.convertTo(descriptors_frame, CV_32F);
+  //escriptors_model.convertTo(descriptors_model, CV_32F);
+
   // 2a. From image 1 to image 2
   matcher_->clear();
   matcher_->add(descriptors_model);
-  matcher_->train();
   matcher_->knnMatch(descriptors_frame, matches12, 2); // return 2 nearest neighbours
 
   // 2b. From image 2 to image 1
   matcher_->clear();
   matcher_->add(descriptors_frame);
-  matcher_->train();
   matcher_->knnMatch(descriptors_model, matches21, 2); // return 2 nearest neighbours
+
+  tstop = (double)clock()/CLOCKS_PER_SEC;
+  ttime = tstop-tstart; /*ttime is how long your code run */
+  std::cout << "Time knn Matching: " << ttime*1000 << "ms" << std::endl;
+
+  tstart = (double)clock()/CLOCKS_PER_SEC;
 
   // 3. Remove matches for which NN ratio is > than threshold
   // clean image 1 -> image 2 matches
@@ -157,9 +192,19 @@ void RobustMatcher::robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& 
   // clean image 2 -> image 1 matches
   int removed2 = ratioTest(matches21);
 
+  tstop = (double)clock()/CLOCKS_PER_SEC;
+  ttime = tstop-tstart; /*ttime is how long your code run */
+  std::cout << "Time ratio test: " << ttime*1000 << "ms" << std::endl;
+
+  tstart = (double)clock()/CLOCKS_PER_SEC;
+
   // 4. Remove non-symmetrical matches
   std::vector<cv::DMatch> symMatches;
   symmetryTest(matches12, matches21, symMatches);
+
+  tstop = (double)clock()/CLOCKS_PER_SEC;
+  ttime = tstop-tstart; /*ttime is how long your code run */
+  std::cout << "Time symmetry test: " << ttime*1000 << "ms" << std::endl;
 
   good_matches.clear();
   good_matches = symMatches;
@@ -182,19 +227,9 @@ void RobustMatcher::simpleMatch( const cv::Mat& frame, std::vector<cv::DMatch>& 
   this->computeDescriptors(frame, keypoints_frame, descriptors_frame);
 
   // 2. Match the two image descriptors
-  std::vector<std::vector<cv::DMatch> > matches;
 
-  // 2a. From image 1 to image 2
   matcher_->clear();
-  matcher_->knnMatch(descriptors_model, descriptors_frame, matches, 2); // return 2 nearest neighbours
+  matcher_->add(descriptors_model);
+  matcher_->match(descriptors_frame, good_matches);
 
-  // -- Step 4: Ratio test
-    for (unsigned int match_index = 0; match_index < matches.size(); ++match_index)
-    {
-     const float ratio = 0.8; // As in Lowe's paper; can be tuned
-     if (matches[match_index][0].distance < ratio * matches[match_index][1].distance)
-     {
-         good_matches.push_back(matches[match_index][0]);
-     }
-    }
 }

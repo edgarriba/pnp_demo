@@ -3,8 +3,8 @@
 #include <boost/lexical_cast.hpp>
 
 #include <opencv2/core/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 #include "opencv2/video/tracking.hpp"
@@ -16,21 +16,26 @@
 #include "ModelRegistration.h"
 #include "Utils.h"
 
-std::string img_path = "../Data/resized_IMG_3875.JPG";
-std::string video_path = "../Data/box.mp4";
+//std::string img_path = "../Data/resized_IMG_3875.JPG";
+std::string img_path = "../Data/box_test.jpg";
+
+std::string video_path = "../Data/box3.mp4";
 std::string ply_read_path = "../Data/box.ply";
 std::string yml_read_path = "../Data/box.yml";
 
 /*
  * Set up the intrinsic camera parameters: UVC WEBCAM
  */
-double f = 55;
+
+double f = 50;
 double sx = 22.3, sy = 14.9;
 double width = 640, height = 480;
 double params_WEBCAM[] = { width*f/sx,   // fx
                           height*f/sy,  // fy
                           width/2,      // cx
                           height/2};    // cy
+
+
 
 /*
  * Set up some basic colors
@@ -50,8 +55,8 @@ int iterationsCount = 1000; //100 // increase
 int reprojectionError = 30; //8.0 // 2.0-3.0
 int minInliersCount = 30; //100 // 20-30
 
-int min_inliers = 0; // 20
-int min_confidence = 0; // 30
+int min_inliers = 40; // 20
+int min_confidence = 15; // 30
 
 
 void onRatioTest( int, void* )
@@ -60,8 +65,17 @@ void onRatioTest( int, void* )
 }
 void onNumKeyPoints( int, void* )
 {
-  cv::FeatureDetector* detector = new cv::OrbFeatureDetector(numKeyPoints);
+  cv::FeatureDetector * detector = new cv::OrbFeatureDetector(numKeyPoints);
   rmatcher.setFeatureDetector(detector);
+}
+
+double mean(const std::vector<double> data)
+{
+  double mean = 0;
+  for (int i = 0; i < data.size(); ++i) {
+    mean += data[i];
+  }
+  return mean /= data.size();
 }
 
 int main(int, char**)
@@ -79,33 +93,40 @@ int main(int, char**)
   mesh.load(ply_read_path); // load the 3D textured object model
 
   // Instantiate robust Matcher: detector, extractor, matcher
-  cv::FeatureDetector* detector = new cv::OrbFeatureDetector(numKeyPoints);
-  cv::DescriptorExtractor* extractor = new cv::OrbDescriptorExtractor;
-  cv::DescriptorMatcher* matcher = new cv::BFMatcher(cv::NORM_HAMMING, false);
+  cv::FeatureDetector * detector = new cv::OrbFeatureDetector(numKeyPoints);
+  bool crossMatching = true;
+  cv::DescriptorMatcher * matcher = new cv::BFMatcher(cv::NORM_HAMMING, crossMatching);
   rmatcher.setFeatureDetector(detector);
-  rmatcher.setDescriptorExtractor(extractor);
   rmatcher.setDescriptorMatcher(matcher);
   rmatcher.setRatio(ratio);
 
+
   // Instantiate Kalman Filter
 
-  int dynamicsParams = 7;
-  int measurementParams = 7;
+  int nStates = 15, nMeasurements = 12, nInputs = 0;
 
-  cv::KalmanFilter KF;
-  cv::Mat measurement = cv::Mat_<float>::zeros(measurementParams,1);
-  measurement.setTo(cv::Scalar(0));
+  cv::KalmanFilter KF(nStates, nMeasurements, nInputs, CV_64F);
+  cv::Mat measurement(nMeasurements,1,CV_64F); measurement.setTo(cv::Scalar(0));
 
   //init Kalman
-  KF.init(dynamicsParams, measurementParams);
-
   cv::setIdentity(KF.measurementMatrix);
   cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));
   cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-1));
   cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));
 
+  double dt = 1; //
+  KF.transitionMatrix.at<double>(0,12) = dt; // vx
+  KF.transitionMatrix.at<double>(1,13) = dt; // vy
+  KF.transitionMatrix.at<double>(2,14) = dt; // vz
+
+  KF.transitionMatrix.at<double>(12,12) = dt; // vx
+  KF.transitionMatrix.at<double>(13,13) = dt; // vy
+  KF.transitionMatrix.at<double>(14,14) = dt; // vz
+
   std::cout << "A " << std::endl << KF.transitionMatrix << std::endl;
   std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;
+
+  bool is_firstPose = true;
 
   // Open the image to register
   cv::Mat img_in = cv::imread(img_path, cv::IMREAD_COLOR);
@@ -121,12 +142,6 @@ int main(int, char**)
   std::vector<cv::Point3f> list_points3d_model = model.get_points3d();
   std::vector<cv::KeyPoint> keypoints_model = model.get_keypoints();
   cv::Mat descriptors_model = model.get_descriptors();
-
-  cv::BFMatcher match(cv::NORM_HAMMING, true);
-  match.add(descriptors_model);
-  match.train();
-
-  cv::ORB orb(numKeyPoints);
 
   // Model variance
   double model_variance = get_variance(list_points3d_model);
@@ -144,9 +159,15 @@ int main(int, char**)
   cv::createTrackbar("Pose Confidence", "REAL TIME DEMO", &min_confidence, 100);
 
   //cv::VideoCapture cap(0); // open the default camera
-  cv::VideoCapture cap("../Data/box.mp4"); // open the recorded video
+  cv::VideoCapture cap(video_path); // open the recorded video
   if(!cap.isOpened())  // check if we succeeded
       return -1;
+
+  double dWidth = cap.get(cv::CAP_PROP_FRAME_WIDTH); //get the width of frames of the video
+  double dHeight = cap.get(cv::CAP_PROP_FRAME_HEIGHT); //get the height of frames of the video
+
+  cv::Size frameSize(static_cast<int>(dWidth), static_cast<int>(dHeight));
+  cv::VideoWriter oVideoWriter ("../Data/MyVideo.avi", 0, 5, frameSize, true); //initialize the VideoWriter object
 
   // start and end times
   time_t start, end;
@@ -163,21 +184,44 @@ int main(int, char**)
   // start the clock
   time(&start);
 
+  double tstart2, tstop2, ttime2; // algorithm metrics
+  double tstart, tstop, ttime; // algorithm metrics
+
+  cv::Mat frame, frame_vis;
+  std::vector<double> mean_match, mean_ransac, mean_stuff, mean_frame;
+
   // Loop videostream
-  for(;;)
+  while(cap.read(frame) && cv::waitKey(30) != 27)
   {
-    cv::Mat frame, frame_vis;
-    cap >> frame; // get a new frame from camera
+    tstart2 = (double)clock()/CLOCKS_PER_SEC;
+
+    //cap >> frame; // get a new frame from camera
     frame_vis = frame.clone();
 
     // Robust Match
     std::vector<cv::DMatch> good_matches;
     std::vector<cv::KeyPoint> keypoints_scene;
+    cv::Mat descriptors_scene;
 
-    //rmatcher.simpleMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
-    //rmatcher.crossCheckMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
-    rmatcher.robustMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
+    tstart = (double)clock()/CLOCKS_PER_SEC;
 
+
+    if(crossMatching)
+    {
+      rmatcher.simpleMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
+    }
+    else
+    {
+      //rmatcher.crossCheckMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
+      rmatcher.robustMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
+    }
+
+    tstop = (double)clock()/CLOCKS_PER_SEC;
+    ttime = tstop-tstart; /*ttime is how long your code run */
+    std::cout << "Time robustMatch: " << ttime*1000 << "ms" << std::endl;
+    mean_match.push_back(ttime);
+
+    double confidence;
     cv::Mat inliers_idx;
     std::vector<cv::DMatch> matches_inliers;
     std::vector<cv::KeyPoint> keypoints_inliers;
@@ -186,6 +230,8 @@ int main(int, char**)
 
     if(good_matches.size() > 0)
     {
+      tstart = (double)clock()/CLOCKS_PER_SEC;
+
       // -- Step 5: Find out the 2D/3D correspondences
       std::vector<cv::Point3f> list_points3d_model_match;
       std::vector<cv::Point2f> list_points2d_scene_match;
@@ -197,10 +243,24 @@ int main(int, char**)
         list_points2d_scene_match.push_back(point2d_scene);
       }
 
+      tstop = (double)clock()/CLOCKS_PER_SEC;
+      ttime = tstop-tstart; /*ttime is how long your code run */
+      std::cout << "Time 2D/3D corr.: " << ttime*1000 << "ms" << std::endl;
+      mean_stuff.push_back(ttime);
+
+      tstart = (double)clock()/CLOCKS_PER_SEC;
+
       // -- Step 6: Estimate the pose using RANSAC approach
       pnp_detection.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match,
                                        cv::EPNP, inliers_idx,
                                        iterationsCount, (double)reprojectionError/10, minInliersCount );
+
+      tstop = (double)clock()/CLOCKS_PER_SEC;
+      ttime = tstop-tstart; /*ttime is how long your code run */
+      std::cout << "Time RANSAC: " << ttime*1000 << "ms" << std::endl;
+      mean_ransac.push_back(ttime);
+
+      tstart = (double)clock()/CLOCKS_PER_SEC;
 
       // -- Step 7: Catch the inliers keypoints
       for(int inliers_index = 0; inliers_index < inliers_idx.rows; ++inliers_index)
@@ -225,72 +285,154 @@ int main(int, char**)
 
       // -- Step 8: Calculate covariance
       double detection_variance = get_variance(list_points3d_inliers);
-      double confidence = (detection_variance/model_variance)*100;
-      drawConfidence(frame_vis, confidence, yellow);
+      confidence = (detection_variance/model_variance)*100;
 
-      // -- Step 9: Draw pose
+      tstop = (double)clock()/CLOCKS_PER_SEC;
+      ttime = tstop-tstart; /*ttime is how long your code run */
+      std::cout << "Time 2D/3D corr.: " << ttime*1000 << "ms" << std::endl;
+      mean_stuff.push_back(ttime);
+
+
+      tstart = (double)clock()/CLOCKS_PER_SEC;
+
+      // -- Step 10: Kalman Filter
+
+      // GOOD MEASUREMENT
       if( !isnan(confidence) && inliers_idx.rows >= min_inliers && confidence > min_confidence)
       {
-        double l = 5;
-        std::vector<cv::Point2f> pose_points2d;
-        pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,0)));
-        pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(l,0,0)));
-        pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,l,0)));
-        pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,l)));
-        draw3DCoordinateAxes(frame, pose_points2d);
-
-        drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
 
 
-        // -- Step 10: Kalman Filter
+        // Get measures
+        cv::Mat measured_translation(3, 1, CV_64F);
+        measured_translation = pnp_detection.get_t_matrix();
 
-       // First predict, to update the internal statePre variable
-       cv::Mat prediction = KF.predict();
+        cv::Mat measured_rotation(3, 3, CV_64F);
+        measured_rotation = pnp_detection.get_R_matrix();
 
-       // Get measures
-       cv::Mat measured_translation = pnp_detection.get_t_matrix();
-       cv::Mat measured_rotation = pnp_detection.get_R_matrix();
+        // Convert rotation matrix to quaternion
+        cv::Mat measured_quaternion = rot2quat(measured_rotation);
 
-       // Convert rotation matrix to quaternion
-       cv::Mat measured_quaternion = rot2quat(measured_rotation);
+        if(is_firstPose)
+        {
 
-       // Set measurement to predict
-       measurement.at<float>(0) = (float)measured_translation.at<double>(0); // x
-       measurement.at<float>(1) = (float)measured_translation.at<double>(1); // y
-       measurement.at<float>(2) = (float)measured_translation.at<double>(2); // z
-       measurement.at<float>(3) = (float)measured_quaternion.at<double>(0);  // qw
-       measurement.at<float>(4) = (float)measured_quaternion.at<double>(1);  // qx
-       measurement.at<float>(5) = (float)measured_quaternion.at<double>(2);  // qy
-       measurement.at<float>(6) = (float)measured_quaternion.at<double>(3);  // qy
+          KF.statePre.at<double>(0) = measured_translation.at<double>(0); // x
+          KF.statePre.at<double>(1) = measured_translation.at<double>(1); // y
+          KF.statePre.at<double>(2) = measured_translation.at<double>(2); // z
+          KF.statePre.at<double>(3) =  measured_rotation.at<double>(0,0); // R
+          KF.statePre.at<double>(4) =  measured_rotation.at<double>(0,1);
+          KF.statePre.at<double>(5) =  measured_rotation.at<double>(0,2);
+          KF.statePre.at<double>(6) =  measured_rotation.at<double>(1,0);
+          KF.statePre.at<double>(7) =  measured_rotation.at<double>(1,1);
+          KF.statePre.at<double>(8) =  measured_rotation.at<double>(1,2);
+          KF.statePre.at<double>(9) =  measured_rotation.at<double>(2,0);
+          KF.statePre.at<double>(10) =  measured_rotation.at<double>(2,1);
+          KF.statePre.at<double>(11) =  measured_rotation.at<double>(2,2);
+          KF.statePre.at<double>(12) =  1; // vx
+          KF.statePre.at<double>(13) =  1; // vy
+          KF.statePre.at<double>(14) =  1; // vz
 
-       // The "correct" phase that is going to use the predicted value and our measurement
-       cv::Mat estimated = KF.correct(measurement);
+          is_firstPose = false;
+        }
 
-       // Estimated translation
-       cv::Mat translation_est(3, 1, CV_64F);
-       translation_est.at<double>(0) = (double)estimated.at<float>(0);
-       translation_est.at<double>(1) = (double)estimated.at<float>(1);
-       translation_est.at<double>(2) = (double)estimated.at<float>(2);
-
-       // Estimated quaternion
-       cv::Mat quaternion_est(4, 1, CV_64F);
-       quaternion_est.at<double>(0) = (double)estimated.at<float>(3);
-       quaternion_est.at<double>(1) = (double)estimated.at<float>(4);
-       quaternion_est.at<double>(2) = (double)estimated.at<float>(5);
-       quaternion_est.at<double>(3) = (double)estimated.at<float>(6);
-
-       // Convert quaternion to rotation matrix
-       cv::Mat rotation_est = quat2rot(quaternion_est);
-
-       // Set estimated projection matrix
-       pnp_detection_est.set_P_matrix(rotation_est, translation_est);
-
+        // Set measurement to predict
+        measurement.at<double>(0) = measured_translation.at<double>(0); // x
+        measurement.at<double>(1) = measured_translation.at<double>(1); // y
+        measurement.at<double>(2) = measured_translation.at<double>(2); // z
+        //measurement.at<double>(3) = measured_quaternion.at<double>(0);  // qw
+        //measurement.at<double>(4) = measured_quaternion.at<double>(1);  // qx
+        //measurement.at<double>(5) = measured_quaternion.at<double>(2);  // qy
+        //measurement.at<double>(6) = measured_quaternion.at<double>(3);  // qy
+        measurement.at<double>(3) =  measured_rotation.at<double>(0,0);
+        measurement.at<double>(4) =  measured_rotation.at<double>(0,1);
+        measurement.at<double>(5) =  measured_rotation.at<double>(0,2);
+        measurement.at<double>(6) =  measured_rotation.at<double>(1,0);
+        measurement.at<double>(7) =  measured_rotation.at<double>(1,1);
+        measurement.at<double>(8) =  measured_rotation.at<double>(1,2);
+        measurement.at<double>(9) =  measured_rotation.at<double>(2,0);
+        measurement.at<double>(10) =  measured_rotation.at<double>(2,1);
+        measurement.at<double>(11) =  measured_rotation.at<double>(2,2);
 
       }
+      //std::cout << "kalman measurement: " << measurement << std::endl;
+
+      // First predict, to update the internal statePre variable
+      cv::Mat prediction = KF.predict();
+      std::cout << "Kalman prediction: " << prediction << std::endl << std::endl;
+
+      // The "correct" phase that is going to use the predicted value and our measurement
+      cv::Mat estimated = KF.correct(measurement);
+
+      // Estimated translation
+      cv::Mat translation_est(3, 1, CV_64F);
+      translation_est.at<double>(0) = estimated.at<double>(0);
+      translation_est.at<double>(1) = estimated.at<double>(1);
+      translation_est.at<double>(2) = estimated.at<double>(2);
+
+      // Estimated quaternion
+      /*cv::Mat quaternion_est(4, 1, CV_64F);
+      quaternion_est.at<double>(0) = estimated.at<double>(3);
+      quaternion_est.at<double>(1) = estimated.at<double>(4);
+      quaternion_est.at<double>(2) = estimated.at<double>(5);
+      quaternion_est.at<double>(3) = estimated.at<double>(6);*/
+
+      // Convert quaternion to rotation matrix
+      //cv::Mat rotation_est = quat2rot(quaternion_est);
+      cv::Mat rotation_est(3, 3, CV_64F);
+      rotation_est.at<double>(0,0) = estimated.at<double>(3);
+      rotation_est.at<double>(0,1) = estimated.at<double>(4);
+      rotation_est.at<double>(0,2) = estimated.at<double>(5);
+      rotation_est.at<double>(1,0) = estimated.at<double>(6);
+      rotation_est.at<double>(1,1) = estimated.at<double>(7);
+      rotation_est.at<double>(1,2) = estimated.at<double>(8);
+      rotation_est.at<double>(2,0) = estimated.at<double>(9);
+      rotation_est.at<double>(2,1) = estimated.at<double>(10);
+      rotation_est.at<double>(2,2) = estimated.at<double>(11);
+
+      // Set estimated projection matrix
+      pnp_detection_est.set_P_matrix(rotation_est, translation_est);
+
+      tstop = (double)clock()/CLOCKS_PER_SEC;
+      ttime = tstop-tstart; /*ttime is how long your code run */
+      std::cout << "Time Kalman: " << ttime*1000 << "ms" << std::endl;
 
     }
 
-    drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
+    tstart = (double)clock()/CLOCKS_PER_SEC;
+
+    // -- Step X: Draw pose
+
+    double l = 5;
+    std::vector<cv::Point2f> pose_points2d;
+    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,0)));
+    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(l,0,0)));
+    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,l,0)));
+    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,l)));
+    draw3DCoordinateAxes(frame, pose_points2d);
+
+    tstop = (double)clock()/CLOCKS_PER_SEC;
+    ttime = tstop-tstart; /*ttime is how long your code run */
+    std::cout << "Time draw pose: " << ttime*1000 << "ms" << std::endl;
+    mean_stuff.push_back(ttime);
+
+    // -- Step X: Draw correspondences
+
+    drawObjectMesh(frame, &mesh, &pnp_detection, green);
+    drawObjectMesh(frame, &mesh, &pnp_detection_est, yellow);
+
+    // Switched the order due to a opencv bug
+    try {
+
+      cv::drawMatches( frame, keypoints_scene, // scene image
+                       img_in, keypoints_model,  // model image
+                       matches_inliers, frame_vis, red, blue);
+
+    } catch (cv::Exception e) {
+
+      cv::drawMatches( img_in, keypoints_model,  // model image
+                       frame, keypoints_scene, // scene image
+                       matches_inliers, frame_vis, red, blue);
+
+    }
 
     // FRAME RATE
 
@@ -304,14 +446,8 @@ int main(int, char**)
     fps = counter / sec;
 
     drawFPS(frame_vis, fps, yellow); // frame ratio
+    drawConfidence(frame_vis, confidence, yellow);
 
-
-    // -- Step X: Draw correspondences
-
-    // Switched the order due to a opencv bug
-    //cv::drawMatches( img_in, keypoints_model,  // model image
-    //                 frame, keypoints_scene, // scene image
-    //                 matches_inliers, frame_vis, red, blue);
 
     // -- Step X: Draw some text for debugging purpose
 
@@ -328,11 +464,29 @@ int main(int, char**)
     drawText2(frame_vis, text2, red);
 
     cv::imshow("REAL TIME DEMO", frame_vis);
-    if(cv::waitKey(30) >= 0) break;
+    oVideoWriter.write(frame);
+
+    tstop2 = (double)clock()/CLOCKS_PER_SEC;
+    ttime2 = tstop2-tstart2; /*ttime is how long your code run */
+    std::cout << "Time frame: " << ttime2*1000 << "ms" << std::endl;
+    mean_frame.push_back(ttime2);
+
+    std::cout << " ******************* " << std::endl;
+
+    //cv::waitKey(0);
+
   }
 
   // Close and Destroy Window
   cv::destroyWindow("REAL TIME DEMO");
+
+  std::cout << " MATCHING: " << mean(mean_match) << std::endl;
+  std::cout << " RANSAC: " << mean(mean_ransac) << std::endl;
+  std::cout << " STUFF: " << mean(mean_stuff) << std::endl;
+  std::cout << " FRAME: " << mean(mean_frame) << std::endl;
+
+  std::cout << " ******************* " << std::endl;
+
 
   std::cout << "GOODBYE ..." << std::endl;
 

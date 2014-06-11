@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 2.8)
 project( PNP_DEMO )
 
+ADD_DEFINITIONS(
+    -std=c++11 
+	-std=c++0x
+    # Other flags
+)
+
 find_package( OpenCV REQUIRED )
 
 include_directories( 
@@ -50,3 +56,4 @@ pnp_detection
 target_link_libraries( pnp_registration ${OpenCV_LIBS} )
 target_link_libraries( pnp_verification ${OpenCV_LIBS} )
 target_link_libraries( pnp_detection ${OpenCV_LIBS} )
+

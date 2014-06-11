@@ -1,6 +1,9 @@
 #include <iostream>
 #include <boost/lexical_cast.hpp>
 
+#include "cv.h"
+#include "highgui.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/nonfree/features2d.hpp>
@@ -19,7 +22,8 @@
   /*
    * Set up the images paths
    */
-  std::string img_path = "../Data/resized_IMG_3875.JPG";
+  //std::string img_path = "../Data/resized_IMG_3875.JPG";
+  std::string img_path = "../Data/box_test.jpg";
   std::string img_verification_path = "../Data/resized_IMG_3872.JPG";
   std::string ply_read_path = "../Data/box.ply";
   std::string yml_read_path = "../Data/box.yml";
@@ -106,12 +110,8 @@ int main(int, char**)
 
   //Instantiate robust matcher: detector, extractor, matcher
   RobustMatcher rmatcher;
-  cv::FeatureDetector* detector = new cv::OrbFeatureDetector(numKeyPoints);
-  cv::DescriptorExtractor* extractor = new cv::OrbDescriptorExtractor;
-  cv::DescriptorMatcher* matcher = new cv::BFMatcher(cv::NORM_HAMMING, false);
+  cv::FeatureDetector * detector = new cv::OrbFeatureDetector(numKeyPoints);
   rmatcher.setFeatureDetector(detector);
-  rmatcher.setDescriptorExtractor(extractor);
-  rmatcher.setDescriptorMatcher(matcher);
   rmatcher.setRatio(0.80);
 
 
@@ -221,7 +221,7 @@ int main(int, char**)
   std::vector<cv::KeyPoint> keypoints_scene;
 
   rmatcher.robustMatch(img_in2, good_matches, keypoints_scene, keypoints_model, descriptors_model);
-  std::cout <<  "Filteres points: " << good_matches.size() << std::endl;
+  std::cout <<  "Filtered points: " << good_matches.size() << std::endl;
 
   cv::Mat inliers_idx;
   std::vector<cv::DMatch> matches_inliers;

@@ -9,11 +9,14 @@
 #define ROBUSTMATCHER_H_
 
 #include <iostream>
+#include <boost/shared_ptr.hpp>
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/nonfree/nonfree.hpp>
+#include <opencv2/contrib/contrib.hpp>
 
 class RobustMatcher {
 public:
@@ -24,17 +27,18 @@ public:
     extractor_ = new cv::OrbDescriptorExtractor();
     matcher_ = new cv::BFMatcher(cv::NORM_HAMMING, false);
 
+   // matcher_ = new cv::FlannBasedMatcher(new cv::flann::LshIndexParams(5, 24, 2));
   }
   virtual ~RobustMatcher();
 
   // Set the feature detector
-  void setFeatureDetector(cv::FeatureDetector* detect) {  detector_ = detect; }
+  void setFeatureDetector(cv::FeatureDetector * detect) {  detector_ = detect; }
 
   // Set the descriptor extractor
-  void setDescriptorExtractor(cv::DescriptorExtractor* desc) { extractor_ = desc; }
+  void setDescriptorExtractor(cv::DescriptorExtractor * desc) { extractor_ = desc; }
 
   // Set the matcher
-  void setDescriptorMatcher(cv::DescriptorMatcher* match) {  matcher_ = match; }
+  void setDescriptorMatcher(cv::DescriptorMatcher * match) {  matcher_ = match; }
 
   // Set confidence level
   void setConfidenceLevel(double conf) { confidence_ = conf; }
@@ -45,12 +49,13 @@ public:
   void computeKeyPoints( const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints)
   {
     detector_->detect(image, keypoints);
+
   }
 
   void computeDescriptors( const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors)
-    {
-      extractor_->compute(image, keypoints, descriptors);
-    }
+  {
+    extractor_->compute(image, keypoints, descriptors);
+  }
 
 
   //Set ratio
@@ -75,7 +80,7 @@ public:
                     const std::vector<cv::KeyPoint>& keypoints_model,
                     const cv::Mat& descriptors_model );
 
-  void crossCheckMatching ( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+  void crossCheckMatch ( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                             std::vector<cv::KeyPoint>& keypoints_frame,
                             const std::vector<cv::KeyPoint>& keypoints_model,
                             const cv::Mat& descriptors_model );
@@ -88,11 +93,12 @@ public:
 
 private:
   // pointer to the feature point detector object
-  cv::FeatureDetector* detector_;
+  cv::FeatureDetector * detector_;
   // pointer to the feature descriptor extractor object
-  cv::DescriptorExtractor* extractor_;
+  cv::DescriptorExtractor * extractor_;
   // pointer to the matcher object
-  cv::DescriptorMatcher* matcher_;
+  cv::DescriptorMatcher * matcher_;
+
 
   float ratio_; // max ratio between 1st and 2nd NN
   bool refineF_; // if true will refine the F matrix

@@ -17,6 +17,8 @@
    * Set up the images paths
    */
   std::string img_path = "../Data/resized_IMG_3875.JPG";
+  //std::string img_path = "../Data/box_test.jpg";
+
   std::string ply_read_path = "../Data/box.ply";
   std::string write_path = "../Data/box.yml";
 
@@ -98,7 +100,7 @@ int main(int, char**)
 
   //Instantiate robust matcher: detector, extractor, matcher
   RobustMatcher rmatcher;
-  cv::FeatureDetector* detector = new cv::OrbFeatureDetector(numKeyPoints);
+  cv::FeatureDetector * detector = new cv::OrbFeatureDetector(numKeyPoints);
   rmatcher.setFeatureDetector(detector);
 
 

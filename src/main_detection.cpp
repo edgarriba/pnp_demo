@@ -2,6 +2,9 @@
 #include <time.h>
 #include <boost/lexical_cast.hpp>
 
+#include "cv.h"
+#include "highgui.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -120,7 +123,8 @@ int main(int, char**)
   R_TEST.at<double>(2,1) = 0.6632461646283333;
   R_TEST.at<double>(2,2) = -0.5574411129025829;
 
-  int nStates = 18, nMeasurements = 6, nInputs = 0; // version1
+  //int nStates = 18, nMeasurements = 6, nInputs = 0; // version1
+  int nStates = 13, nMeasurements = 7, nInputs = 0; // version2
 
   cv::KalmanFilter KF(nStates, nMeasurements, nInputs, CV_64F);
   cv::Mat measurement(nMeasurements, 1, CV_64F); measurement.setTo(cv::Scalar(0));
@@ -145,7 +149,7 @@ int main(int, char**)
   KF.transitionMatrix.at<double>(1,7) = 0.5*pow(dt,2);
   KF.transitionMatrix.at<double>(2,8) = 0.5*pow(dt,2);
   // orientation
-  KF.transitionMatrix.at<double>(9,12) = dt;
+  /*KF.transitionMatrix.at<double>(9,12) = dt;
   KF.transitionMatrix.at<double>(10,13) = dt;
   KF.transitionMatrix.at<double>(11,14) = dt;
   KF.transitionMatrix.at<double>(12,15) = dt;
@@ -154,14 +158,15 @@ int main(int, char**)
   KF.transitionMatrix.at<double>(9,15) = 0.5*pow(dt,2);
   KF.transitionMatrix.at<double>(10,16) = 0.5*pow(dt,2);
   KF.transitionMatrix.at<double>(11,17) = 0.5*pow(dt,2);
-
+*/
   // measurement model
   KF.measurementMatrix.at<double>(0,0) = 1;  // x
   KF.measurementMatrix.at<double>(1,1) = 1;  // y
   KF.measurementMatrix.at<double>(2,2) = 1;  // z
-  KF.measurementMatrix.at<double>(3,9) = 1;  // euler x
-  KF.measurementMatrix.at<double>(4,10) = 1; // euler y
-  KF.measurementMatrix.at<double>(5,11) = 1; // euler z
+  KF.measurementMatrix.at<double>(3,9) = 1;  // euler x - q1
+  KF.measurementMatrix.at<double>(4,10) = 1; // euler y - q2
+  KF.measurementMatrix.at<double>(5,11) = 1; // euler z - q3
+  KF.measurementMatrix.at<double>(6,12) = 1; // q4
 
   std::cout << "A " << std::endl << KF.transitionMatrix << std::endl;
   std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;
@@ -292,7 +297,7 @@ int main(int, char**)
 
       // -- Step 6: Estimate the pose using RANSAC approach
       pnp_detection.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match,
-                                       cv::EPNP, inliers_idx,
+                                       cv::ITERATIVE, inliers_idx,
                                        iterationsCount, (double)reprojectionError/10, minInliersCount );
 
       tstop = (double)clock()/CLOCKS_PER_SEC;
@@ -347,6 +352,9 @@ int main(int, char**)
         cv::Mat measured_rotation(3, 3, CV_64F);
         measured_rotation = pnp_detection.get_R_matrix();
 
+        cv::Mat measured_quaternion(4, 1, CV_64F);
+        measured_quaternion = rot2quat(measured_rotation);
+
         // Convert rotation matrix to euler angles
         cv::Mat measured_eulers(3, 1, CV_64F);
         measured_eulers = rot2euler(measured_rotation);
@@ -356,9 +364,13 @@ int main(int, char**)
         measurement.at<double>(0) = measured_translation.at<double>(0); // x
         measurement.at<double>(1) = measured_translation.at<double>(1); // y
         measurement.at<double>(2) = measured_translation.at<double>(2); // z
-        measurement.at<double>(3) =  measured_eulers.at<double>(0); // euler x
-        measurement.at<double>(4) =  measured_eulers.at<double>(1); // euler y
-        measurement.at<double>(5) =  measured_eulers.at<double>(2); // euler z
+//        measurement.at<double>(3) =  measured_eulers.at<double>(0); // euler x
+//        measurement.at<double>(4) =  measured_eulers.at<double>(1); // euler y
+//        measurement.at<double>(5) =  measured_eulers.at<double>(2); // euler z
+        measurement.at<double>(3) =  measured_quaternion.at<double>(0); // qw
+        measurement.at<double>(4) =  measured_quaternion.at<double>(1); // qx
+        measurement.at<double>(5) =  measured_quaternion.at<double>(2); // qy
+        measurement.at<double>(6) =  measured_quaternion.at<double>(3); // qz
 
         drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
 
@@ -380,17 +392,24 @@ int main(int, char**)
       //std::cout << "Trans : " << translation_est << std::endl << std::endl;
 
       // Estimated euler angles
-      cv::Mat euler_est(3, 1, CV_64F);
+      /*cv::Mat euler_est(3, 1, CV_64F);
       euler_est.at<double>(0) = estimated.at<double>(9);
       euler_est.at<double>(1) = estimated.at<double>(10);
-      euler_est.at<double>(2) = estimated.at<double>(11);
+      euler_est.at<double>(2) = estimated.at<double>(11);*/
 
-      // Convert estimated euler angles to rotation matrix
+      // Estimated quaternion
+      cv::Mat quaternion_est(4, 1, CV_64F);
+      quaternion_est.at<double>(0) = estimated.at<double>(9);
+      quaternion_est.at<double>(1) = estimated.at<double>(10);
+      quaternion_est.at<double>(2) = estimated.at<double>(11);
+      quaternion_est.at<double>(3) = estimated.at<double>(12);
+
+      // Convert estimated quaternion to rotation matrix
       cv::Mat rotation_est(3, 3, CV_64F);
-      rotation_est = euler2rot(euler_est);
+      rotation_est = quat2rot(quaternion_est);
 
       // Set estimated projection matrix
-      pnp_detection_est.set_P_matrix(R_TEST, translation_est);
+      pnp_detection_est.set_P_matrix(rotation_est, translation_est);
 
       tstop = (double)clock()/CLOCKS_PER_SEC;
       ttime = tstop-tstart; /*ttime is how long your code run */

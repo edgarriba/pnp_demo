@@ -226,7 +226,7 @@ double get_variance(const std::vector<cv::Point3f> list_points3d)
 cv::Mat rot2quat(cv::Mat &rotationMatrix)
 {
   cv::Mat q(4, 1, CV_64F);
-  double q1, q2, q3, q4;
+  double qw, qx, qy, qz;
 
   double m00 = rotationMatrix.at<double>(0,0);
   double m01 = rotationMatrix.at<double>(0,1);
@@ -238,70 +238,50 @@ cv::Mat rot2quat(cv::Mat &rotationMatrix)
   double m21 = rotationMatrix.at<double>(2,1);
   double m22 = rotationMatrix.at<double>(2,2);
 
-  /*double q4 = 0.5 * sqrt( 1 + m00 + m11 + m22 );
-  double q1 = 1/(4*q4) * ( m21 + m12 );
-  double q2 = 1/(4*q4) * ( m02 + m20 );
-  double q3 = 1/(4*q4) * ( m10 + m01 );*/
+  double tr = m00 + m11 + m22;
 
-
-  double t = m00 + m11 + m22;
-  double s, r;
-  if( t > 0 )
+  if (tr > 0)
   {
-    s = sqrt( 1 + t );
-    r = 0.5/s;
-    q1 = 0.5*s;
-    q2 = (m21-m12)*r;
-    q3 = (m02-m20)*r;
-    q4 = (m10-m01)*r;
+    double S = sqrt(tr+1.0) * 2; // S=4*qw
+    qw = 0.25 * S;
+    qx = (m21 - m12) / S;
+    qy = (m02 - m20) / S;
+    qz = (m10 - m01) / S;
+  } else if ((m00 > m11)&(m00 > m22))
+  {
+    double S = sqrt(1.0 + m00 - m11 - m22) * 2; // S=4*qx
+    qw = (m21 - m12) / S;
+    qx = 0.25 * S;
+    qy = (m01 + m10) / S;
+    qz = (m02 + m20) / S;
+  } else if (m11 > m22)
+  {
+    double S = sqrt(1.0 + m11 - m00 - m22) * 2; // S=4*qy
+    qw = (m02 - m20) / S;
+    qx = (m01 + m10) / S;
+    qy = 0.25 * S;
+    qz = (m12 + m21) / S;
   }
-  else //Find the largest diagonal element
+  else
   {
-    double big = std::max(m00, m11);
-    big = std::max(big, m22);
-    if( big == m00 )
-    {
-      s = sqrt(1+m00-m11-m22);
-      r = 0.5/s;
-      q1 = (m21-m12)*r;
-      q2 = 0.5*s;
-      q3 = (m10-m01)*r;
-      q4 = (m02-m20)*r;
-    }
-    else if ( big == m11 )
-    {
-      s = sqrt(1-m00+m11-m22);
-      r = 0.5/s;
-      q1 = (m02-m20)*r;
-      q2 = (m10+m01)*r;
-      q3 = 0.5*s;
-      q4 = (m21+m12)*r;
-    }
-    else if ( big == m22)
-    {
-      s = sqrt(1-m00-m11+m22);
-      r = 0.5/s;
-      q1 = (m10-m01)*r;
-      q2 = (m02+m20)*r;
-      q3 = (m21+m12)*r;
-      q4 = 0.5*s;
-    }
-
+    float S = sqrt(1.0 + m22 - m00 - m11) * 2; // S=4*qz
+    qw = (m10 - m01) / S;
+    qx = (m02 + m20) / S;
+    qy = (m12 + m21) / S;
+    qz = 0.25 * S;
   }
 
-  // Normalisation
-  //double f = sqrt(q1*q1 + q2*q2 + q3*q3 + q4*q4);
-  double f = 1;
+  // normalisation
+  double n = sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
+  qw /= n;
+  qx /= n;
+  qy /= n;
+  qz /= n;
 
-  q1 /= f;
-  q2 /= f;
-  q3 /= f;
-  q4 /= f;
-
-  q.at<double>(0,0) = q1;
-  q.at<double>(0,1) = q2;
-  q.at<double>(0,2) = q3;
-  q.at<double>(0,3) = q4;
+  q.at<double>(0,0) = qw;
+  q.at<double>(0,1) = qx;
+  q.at<double>(0,2) = qy;
+  q.at<double>(0,3) = qz;
 
   return q;
 }

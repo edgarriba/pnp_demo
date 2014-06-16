@@ -60,19 +60,31 @@ void Model::save(const std::string path)
 /** Save a CSV file and fill the object mesh */
 void Model::load(const std::string path)
 {
-  list_points3d_in_.clear();
-  list_points2d_in_.clear();
+  //list_points3d_in_.clear();
+  //list_points2d_in_.clear();
 
   cv::FileStorage storage(path, cv::FileStorage::READ);
 
-  cv::Mat points3d, points2d, keypoints;
-  storage["points_3d"] >> points3d;
-  storage["points_2d"] >> points2d;
-  storage["keypoints"] >> list_keypoints_;
-  storage["descriptors"] >> descriptors_;
+  cv::Mat points3d_mat, points2d_mat, descriptors, keypoints;
+  std::vector<cv::Point3f> points3d_vec;
+  std::vector<cv::Point2f> points2d_vec;
+  //cv::Mat descriptors,
 
-  points3d.copyTo(list_points3d_in_);
-  points2d.copyTo(list_points2d_in_);
+  storage["points_3d"] >> points3d_mat;
+  storage["points_2d"] >> points2d_mat;
+  storage["keypoints"] >> list_keypoints_;
+  storage["descriptors"] >> descriptors;
+
+  points3d_mat.copyTo(points3d_vec);
+  points2d_mat.copyTo(points2d_vec);
+
+  for (int i = 0; i < points3d_vec.size(); ++i)
+  {
+
+    list_points3d_in_.push_back(points3d_vec.at(i));
+    list_points2d_in_.push_back(points2d_vec.at(i));
+    descriptors_.push_back(descriptors.row(i));
+  }
 
   // load keypoints
   for (int i = 0; i < keypoints.cols; ++i) {

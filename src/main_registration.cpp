@@ -16,11 +16,14 @@
   /*
    * Set up the images paths
    */
-  std::string img_path = "../Data/resized_IMG_3875.JPG";
+  //std::string img_path = "../Data/resized_IMG_3867.JPG"; // 55
+  std::string img_path = "../Data/resized_IMG_3872.JPG"; // 43
+  //std::string img_path = "../Data/resized_IMG_3875.JPG"; // 34
+
   //std::string img_path = "../Data/box_test.jpg";
 
   std::string ply_read_path = "../Data/box.ply";
-  std::string write_path = "../Data/box.yml";
+  std::string write_path = "../Data/box3.yml";
 
   // Boolean the know if the registration it's done
   bool end_registration = false;
@@ -28,7 +31,7 @@
   /*
    * Set up the intrinsic camera parameters: CANON
    */
-  double f = 55;
+  double f = 43; // 55
   double sx = 22.3, sy = 14.9;
   double width = 718, height = 480;
   double params_CANON[] = { width*f/sx,   // fx
@@ -40,7 +43,7 @@
   // Setup the points to register in the image
   // In the order of the *.ply file and starting at 1
   int n = 7;
-  int pts[] = {1, 2, 3, 5, 6, 7, 8};
+  int pts[] = {1, 2, 3, 5, 6, 7, 8}; // 3 -> 4
 
   /*
    * Set up some basic colors
@@ -96,7 +99,7 @@ int main(int, char**)
   mesh.load(ply_read_path);
 
   // set parameters
-  int numKeyPoints = 5000;
+  int numKeyPoints = 2500;
 
   //Instantiate robust matcher: detector, extractor, matcher
   RobustMatcher rmatcher;

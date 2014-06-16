@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 
-#include <opencv2/core.hpp>
+#include <opencv2/core/core.hpp>
 
 class CsvWriter {
 public:

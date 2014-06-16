@@ -12,8 +12,8 @@
 #include "ModelRegistration.h"
 #include "Utils.h"
 
-#include <opencv2/imgproc.hpp>
-#include <opencv2/calib3d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 
 
@@ -339,6 +339,101 @@ cv::Mat quat2rot(cv::Mat &q)
   rotationMatrix.at<double>(2,0) = xz - wy;
   rotationMatrix.at<double>(2,1) = yz + wx;
   rotationMatrix.at<double>(2,2) = 1 - ( xx + yy );
+
+  return rotationMatrix;
+}
+
+cv::Mat rot2euler(const cv::Mat & rotationMatrix)
+{
+  cv::Mat euler(3,1,CV_64F);
+
+  double m00 = rotationMatrix.at<double>(0,0);
+  double m01 = rotationMatrix.at<double>(0,1);
+  double m02 = rotationMatrix.at<double>(0,2);
+  double m10 = rotationMatrix.at<double>(1,0);
+  double m11 = rotationMatrix.at<double>(1,1);
+  double m12 = rotationMatrix.at<double>(1,2);
+  double m20 = rotationMatrix.at<double>(2,0);
+  double m21 = rotationMatrix.at<double>(2,1);
+  double m22 = rotationMatrix.at<double>(2,2);
+
+  double x, y, z;
+
+  // Assuming the angles are in radians.
+  if (m10 > 0.998) { // singularity at north pole
+    x = atan2(m02,m22);
+    y = CV_PI/2;
+    z = 0;
+  }
+  if (m10 < -0.998) { // singularity at south pole
+    x = atan2(m02,m22);
+    y = -CV_PI/2;
+    z = 0;
+  }
+  x = atan2(-m20,m00);
+  y = atan2(-m12,m11);
+  z = asin(m10);
+
+  euler.at<double>(0) = x;
+  euler.at<double>(1) = y;
+  euler.at<double>(2) = z;
+
+  return euler;
+}
+
+cv::Mat quat2euler(const cv::Mat & q)
+{
+  cv::Mat euler(3,1,CV_64F);
+
+  double qw = q.at<double>(0);
+  double qx = q.at<double>(1);
+  double qy = q.at<double>(2);
+  double qz = q.at<double>(3);
+
+  double theta = atan2( 2*(qy*qz+qw*qx) , pow(qw,2)-pow(qx,2)-pow(qy,2)+pow(qz,2) );
+  double phi = asin( -2*(qx*qz-qw*qy) );
+  double psi = atan2( 2*(qx*qy+qw*qz) , pow(qw,2)+pow(qx,2)-pow(qy,2)-pow(qz,2) );
+
+  return euler;
+}
+
+cv::Mat euler2rot(const cv::Mat & euler)
+{
+  cv::Mat rotationMatrix(3,3,CV_64F);
+
+  double x = euler.at<double>(0);
+  double y = euler.at<double>(1);
+  double z = euler.at<double>(2);
+
+  // Assuming the angles are in radians.
+  double ch = cos(x);
+  double sh = sin(x);
+  double ca = cos(y);
+  double sa = sin(y);
+  double cb = cos(z);
+  double sb = sin(z);
+
+  double m00, m01, m02, m10, m11, m12, m20, m21, m22;
+
+  m00 = ch * ca;
+  m01 = sh*sb - ch*sa*cb;
+  m02 = ch*sa*sb + sh*cb;
+  m10 = sa;
+  m11 = ca*cb;
+  m12 = -ca*sb;
+  m20 = -sh*ca;
+  m21 = sh*sa*cb + ch*sb;
+  m22 = -sh*sa*sb + ch*cb;
+
+  rotationMatrix.at<double>(0,0) = m00;
+  rotationMatrix.at<double>(0,1) = m01;
+  rotationMatrix.at<double>(0,2) = m02;
+  rotationMatrix.at<double>(1,0) = m10;
+  rotationMatrix.at<double>(1,1) = m11;
+  rotationMatrix.at<double>(1,2) = m12;
+  rotationMatrix.at<double>(2,0) = m20;
+  rotationMatrix.at<double>(2,1) = m21;
+  rotationMatrix.at<double>(2,2) = m22;
 
   return rotationMatrix;
 }

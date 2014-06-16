@@ -22,8 +22,9 @@
   /*
    * Set up the images paths
    */
-  //std::string img_path = "../Data/resized_IMG_3875.JPG";
-  std::string img_path = "../Data/box_test.jpg";
+  std::string img_path = "../Data/resized_IMG_3875.JPG";
+  //std::string img_path = "../Data/box_test.jpg";
+
   std::string img_verification_path = "../Data/resized_IMG_3872.JPG";
   std::string ply_read_path = "../Data/box.ply";
   std::string yml_read_path = "../Data/box.yml";

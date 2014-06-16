@@ -80,12 +80,12 @@ public:
                     const std::vector<cv::KeyPoint>& keypoints_model,
                     const cv::Mat& descriptors_model );
 
-  void crossCheckMatch ( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+  void crossMatch ( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                             std::vector<cv::KeyPoint>& keypoints_frame,
                             const std::vector<cv::KeyPoint>& keypoints_model,
                             const cv::Mat& descriptors_model );
 
-  void simpleMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+  void crossOpenCVMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                       std::vector<cv::KeyPoint>& keypoints_frame,
                       const std::vector<cv::KeyPoint>& keypoints_model,
                       const cv::Mat& descriptors_model );

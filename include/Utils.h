@@ -49,5 +49,8 @@ double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R);
 double get_variance(const std::vector<cv::Point3f> list_points3d);
 cv::Mat rot2quat(cv::Mat &rotationMatrix);
 cv::Mat quat2rot(cv::Mat &q);
+cv::Mat euler2rot(const cv::Mat & euler);
+cv::Mat rot2euler(const cv::Mat & rotationMatrix);
+cv::Mat quat2euler(const cv::Mat & q);
 
 #endif /* UTILS_H_ */

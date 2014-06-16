@@ -75,7 +75,7 @@ void RobustMatcher::symmetryTest( const std::vector<std::vector<cv::DMatch> >& m
    }
 }
 
-void RobustMatcher::crossCheckMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+void RobustMatcher::crossMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                          std::vector<cv::KeyPoint>& keypoints_frame,
                          const std::vector<cv::KeyPoint>& keypoints_model,
                          const cv::Mat& descriptors_model )
@@ -86,10 +86,10 @@ void RobustMatcher::crossCheckMatch( const cv::Mat& frame, std::vector<cv::DMatc
 
     tstart = (double)clock()/CLOCKS_PER_SEC;
 
-    // 1a. Detection of the SURF features
+    // 1a. Detection of the ORB features
     this->computeKeyPoints(frame, keypoints_frame);
 
-    // 1b. Extraction of the SURF descriptors
+    // 1b. Extraction of the ORB descriptors
     cv::Mat descriptors_frame;
     this->computeDescriptors(frame, keypoints_frame, descriptors_frame);
 
@@ -151,10 +151,10 @@ void RobustMatcher::robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& 
 
   tstart = (double)clock()/CLOCKS_PER_SEC;
 
-  // 1a. Detection of the SURF features
+  // 1a. Detection of the ORB features
   this->computeKeyPoints(frame, keypoints_frame);
 
-   // 1b. Extraction of the SURF descriptors
+   // 1b. Extraction of the ORB descriptors
   cv::Mat descriptors_frame;
   this->computeDescriptors(frame, keypoints_frame, descriptors_frame);
 
@@ -212,24 +212,39 @@ void RobustMatcher::robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& 
   //matcher_->match(descriptors_frame, descriptors_model, good_matches);
 }
 
-void RobustMatcher::simpleMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+void RobustMatcher::crossOpenCVMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                                  std::vector<cv::KeyPoint>& keypoints_frame,
                                  const std::vector<cv::KeyPoint>& keypoints_model,
                                  const cv::Mat& descriptors_model )
 {
   good_matches.clear();
 
-  // 1a. Detection of the SURF features
+  double tstart, tstop, ttime;
+
+  tstart = (double)clock()/CLOCKS_PER_SEC;
+
+  // 1a. Detection of the ORB features
   this->computeKeyPoints(frame, keypoints_frame);
 
-  // 1b. Extraction of the SURF descriptors
+  // 1b. Extraction of the ORB descriptors
   cv::Mat descriptors_frame;
   this->computeDescriptors(frame, keypoints_frame, descriptors_frame);
+
+  tstop = (double)clock()/CLOCKS_PER_SEC;
+  ttime = tstop-tstart; /*ttime is how long your code run */
+  std::cout << "Time KP: " << ttime*1000 << "ms" << std::endl;
+
+
+  tstart = (double)clock()/CLOCKS_PER_SEC;
 
   // 2. Match the two image descriptors
 
   matcher_->clear();
   matcher_->add(descriptors_model);
   matcher_->match(descriptors_frame, good_matches);
+
+  tstop = (double)clock()/CLOCKS_PER_SEC;
+  ttime = tstop-tstart; /*ttime is how long your code run */
+  std::cout << "Time matching: " << ttime*1000 << "ms" << std::endl;
 
 }

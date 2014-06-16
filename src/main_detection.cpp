@@ -186,7 +186,7 @@ int main(int, char**)
   double model_variance = get_variance(list_points3d_model);
 
   // Create & Open Window
-  cv::namedWindow("REAL TIME DEMO", cv::WINDOW_KEEPRATIO);
+  cv::namedWindow("REAL TIME DEMO", CV_WINDOW_KEEPRATIO);
 
   // TUNING VALUES
   cv::createTrackbar("Num. Keypoints", "REAL TIME DEMO", &numKeyPoints, 15000, onNumKeyPoints);
@@ -202,8 +202,8 @@ int main(int, char**)
   if(!cap.isOpened())  // check if we succeeded
       return -1;
 
-  double dWidth = cap.get(cv::CAP_PROP_FRAME_WIDTH); //get the width of frames of the video
-  double dHeight = cap.get(cv::CAP_PROP_FRAME_HEIGHT); //get the height of frames of the video
+  double dWidth = cap.get(CV_CAP_PROP_FRAME_WIDTH); //get the width of frames of the video
+  double dHeight = cap.get(CV_CAP_PROP_FRAME_HEIGHT); //get the height of frames of the video
 
   cv::Size frameSize(static_cast<int>(dWidth), static_cast<int>(dHeight));
   cv::VideoWriter oVideoWriter ("../Data/MyVideo.avi", 0, 8, frameSize, true); //initialize the VideoWriter object

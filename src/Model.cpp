@@ -72,7 +72,7 @@ void Model::load(const std::string path)
 
   storage["points_3d"] >> points3d_mat;
   storage["points_2d"] >> points2d_mat;
-  storage["keypoints"] >> list_keypoints_;
+//  storage["keypoints"] >> list_keypoints_;
   storage["descriptors"] >> descriptors;
 
   points3d_mat.copyTo(points3d_vec);

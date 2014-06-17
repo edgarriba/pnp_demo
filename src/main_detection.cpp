@@ -22,9 +22,9 @@
 std::string img_path = "../Data/resized_IMG_3875.JPG";
 //std::string img_path = "../Data/box_test.jpg";
 
-std::string video_path = "../Data/box3.mp4";
-std::string ply_read_path = "../Data/box.ply";
-std::string yml1_read_path = "../Data/box1.yml";
+std::string video_path = "../Data/box3.mp4";     // video
+std::string ply_read_path = "../Data/box.ply";   // mesh
+std::string yml1_read_path = "../Data/box1.yml"; // 3dpts + descriptors
 std::string yml2_read_path = "../Data/box2.yml";
 std::string yml3_read_path = "../Data/box3.yml";
 
@@ -107,9 +107,6 @@ int main(int, char**)
   rmatcher.setDescriptorMatcher(matcher);
   rmatcher.setRatio(ratio);
 
-
-  // Instantiate Kalman Filter
-
   cv::Mat R_TEST(3,3,CV_64FC1);
   R_TEST.at<double>(0,0) = 0.7666923627714876;
   R_TEST.at<double>(0,1) = -0.6379407131990361;
@@ -123,19 +120,20 @@ int main(int, char**)
   R_TEST.at<double>(2,1) = 0.6632461646283333;
   R_TEST.at<double>(2,2) = -0.5574411129025829;
 
-  //int nStates = 18, nMeasurements = 6, nInputs = 0; // version1
-  int nStates = 13, nMeasurements = 7, nInputs = 0; // version2
+
+  /*// Instantiate Kalman Filter
+
+  int nStates = 13, nMeasurements = 7, nInputs = 0;
 
   cv::KalmanFilter KF(nStates, nMeasurements, nInputs, CV_64F);
   cv::Mat measurement(nMeasurements, 1, CV_64F); measurement.setTo(cv::Scalar(0));
 
   //init Kalman
-  //cv::setIdentity(KF.measurementMatrix); // version1
   cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));
   cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-1));
   cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));
 
-  double dt = 0.125; // 1/fps -- 1/8
+  double dt = 0.5; // 1/fps -- 1/8
 
   // dynamic model
   // position
@@ -149,7 +147,7 @@ int main(int, char**)
   KF.transitionMatrix.at<double>(1,7) = 0.5*pow(dt,2);
   KF.transitionMatrix.at<double>(2,8) = 0.5*pow(dt,2);
   // orientation
-  /*KF.transitionMatrix.at<double>(9,12) = dt;
+  KF.transitionMatrix.at<double>(9,12) = dt;
   KF.transitionMatrix.at<double>(10,13) = dt;
   KF.transitionMatrix.at<double>(11,14) = dt;
   KF.transitionMatrix.at<double>(12,15) = dt;
@@ -158,18 +156,45 @@ int main(int, char**)
   KF.transitionMatrix.at<double>(9,15) = 0.5*pow(dt,2);
   KF.transitionMatrix.at<double>(10,16) = 0.5*pow(dt,2);
   KF.transitionMatrix.at<double>(11,17) = 0.5*pow(dt,2);
-*/
+
   // measurement model
   KF.measurementMatrix.at<double>(0,0) = 1;  // x
   KF.measurementMatrix.at<double>(1,1) = 1;  // y
   KF.measurementMatrix.at<double>(2,2) = 1;  // z
-  KF.measurementMatrix.at<double>(3,9) = 1;  // euler x - q1
-  KF.measurementMatrix.at<double>(4,10) = 1; // euler y - q2
-  KF.measurementMatrix.at<double>(5,11) = 1; // euler z - q3
+  KF.measurementMatrix.at<double>(3,9) = 1;  // q1
+  KF.measurementMatrix.at<double>(4,10) = 1; // q2
+  KF.measurementMatrix.at<double>(5,11) = 1; // q3
   KF.measurementMatrix.at<double>(6,12) = 1; // q4
 
   std::cout << "A " << std::endl << KF.transitionMatrix << std::endl;
-  std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;
+  std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;*/
+
+
+  // Initiate alpha-beta filter
+
+  double dt = 0.5;
+  double a = 0.85;
+  double b = 0.005;
+
+  // position
+  cv::Mat xk_1 = cv::Mat::zeros(3, 1, CV_64F); // x,y,z
+  cv::Mat vk_1 = cv::Mat::zeros(3, 1, CV_64F); // vx,vy,vz
+
+  cv::Mat xk(3, 1, CV_64F); // x,y,z
+  cv::Mat vk(3, 1, CV_64F); // vx,vy,vz
+
+  cv::Mat r_xk(3, 1, CV_64F); // residual error
+  cv::Mat xm(3, 1, CV_64F); // measurement position
+
+  // orientation
+  cv::Mat qk_1 = cv::Mat::zeros(4, 1, CV_64F); // qw,qx,qy,qz
+  cv::Mat wk_1 = cv::Mat::zeros(3, 1, CV_64F); // wx,wy,wz
+
+  cv::Mat qk(4, 1, CV_64F); // qw,qx,qy,qz
+  cv::Mat wk(3, 1, CV_64F); // wx,wy,wz
+
+  cv::Mat r_qk(4, 1, CV_64F); // residual error
+  cv::Mat qm(4, 1, CV_64F); // measurement quaternion
 
 
   // Open the image to register
@@ -340,7 +365,7 @@ int main(int, char**)
 
       tstart = (double)clock()/CLOCKS_PER_SEC;
 
-      // -- Step 10: Kalman Filter
+      /*// -- Step 10: Kalman Filter
 
       // GOOD MEASUREMENT
       if( !isnan(confidence) && inliers_idx.rows >= min_inliers && confidence > min_confidence)
@@ -364,15 +389,12 @@ int main(int, char**)
         measurement.at<double>(0) = measured_translation.at<double>(0); // x
         measurement.at<double>(1) = measured_translation.at<double>(1); // y
         measurement.at<double>(2) = measured_translation.at<double>(2); // z
-//        measurement.at<double>(3) =  measured_eulers.at<double>(0); // euler x
-//        measurement.at<double>(4) =  measured_eulers.at<double>(1); // euler y
-//        measurement.at<double>(5) =  measured_eulers.at<double>(2); // euler z
         measurement.at<double>(3) =  measured_quaternion.at<double>(0); // qw
         measurement.at<double>(4) =  measured_quaternion.at<double>(1); // qx
         measurement.at<double>(5) =  measured_quaternion.at<double>(2); // qy
         measurement.at<double>(6) =  measured_quaternion.at<double>(3); // qz
 
-        drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
+        //drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
 
       }
 
@@ -391,12 +413,6 @@ int main(int, char**)
       translation_est.at<double>(2) = estimated.at<double>(2);
       //std::cout << "Trans : " << translation_est << std::endl << std::endl;
 
-      // Estimated euler angles
-      /*cv::Mat euler_est(3, 1, CV_64F);
-      euler_est.at<double>(0) = estimated.at<double>(9);
-      euler_est.at<double>(1) = estimated.at<double>(10);
-      euler_est.at<double>(2) = estimated.at<double>(11);*/
-
       // Estimated quaternion
       cv::Mat quaternion_est(4, 1, CV_64F);
       quaternion_est.at<double>(0) = estimated.at<double>(9);
@@ -411,6 +427,92 @@ int main(int, char**)
       // Set estimated projection matrix
       pnp_detection_est.set_P_matrix(rotation_est, translation_est);
 
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);*/
+
+
+      // Alpha-Beta filter
+
+      // Measurements
+      cv::Mat measured_translation(3, 1, CV_64F);
+      measured_translation = pnp_detection.get_t_matrix();
+
+      cv::Mat measured_rotation(3, 3, CV_64F);
+      measured_rotation = pnp_detection.get_R_matrix();
+
+      // Convert rotation matrix to quaternion
+      cv::Mat measured_quaternion(4, 1, CV_64F);
+      measured_quaternion = rot2quat(measured_rotation);
+
+      // Set measurement to predict
+      xm.at<double>(0) = measured_translation.at<double>(0); // x
+      xm.at<double>(1) = measured_translation.at<double>(1); // y
+      xm.at<double>(2) = measured_translation.at<double>(2); // z
+      qm.at<double>(0) = measured_quaternion.at<double>(0); // qw
+      qm.at<double>(1) = measured_quaternion.at<double>(1); // qx
+      qm.at<double>(2) = measured_quaternion.at<double>(2); // qy
+      qm.at<double>(3) = measured_quaternion.at<double>(3); // qz
+
+      // POSITION
+      // prediction
+      xk = xk_1 + vk_1.mul(dt);
+      vk = vk_1;
+      // residual error
+      r_xk = xm - xk;
+      // correction
+      xk = xk + r_xk.mul(a);
+      vk = vk + cv::Mat(r_xk.mul(b)).mul(1/dt);
+      // update
+      xk_1 = xk;
+      vk_1 = vk;
+
+      // ORIENTATION
+      // prediction
+      double wx = wk_1.at<double>(0);
+      double wy = wk_1.at<double>(1);
+      double wz = wk_1.at<double>(2);
+      double q0 = qk_1.at<double>(0);
+      double q1 = qk_1.at<double>(1);
+      double q2 = qk_1.at<double>(2);
+      double q3 = qk_1.at<double>(3);
+      qk.at<double>(0) = -0.5 *( wx*q1 + wy*q2 + wz*q3 );
+      qk.at<double>(1) = 0.5 *( wx*q0 + wy*q3 - wz*q2 );
+      qk.at<double>(2) = 0.5 *( wy*q0 + wz*q1 - wx*q3 );
+      qk.at<double>(3) = 0.5 *( wz*q0 + wx*q2 - wy*q1 );
+      wk = wk_1;
+      // residual error
+      r_qk = qm - qk;
+      // correction
+      qk = qk + r_qk.mul(a);
+      wk = wk + cv::Mat(r_qk.mul(b)).mul(1/dt);
+      // update
+      qk_1 = qk;
+      wk_1 = wk;
+      //std::cout << "qk : " << qk << std::endl << std::endl;
+
+      // Estimated translation
+      cv::Mat translation_est(3, 1, CV_64F);
+      translation_est.at<double>(0) = xk.at<double>(0);
+      translation_est.at<double>(1) = xk.at<double>(1);
+      translation_est.at<double>(2) = xk.at<double>(2);
+      //std::cout << "Trans : " << translation_est << std::endl << std::endl;
+
+      // Estimated quaternion
+      cv::Mat quaternion_est(4, 1, CV_64F);
+      quaternion_est.at<double>(0) = qk.at<double>(9);
+      quaternion_est.at<double>(1) = qk.at<double>(10);
+      quaternion_est.at<double>(2) = qk.at<double>(11);
+      quaternion_est.at<double>(3) = qk.at<double>(12);
+
+      // Convert estimated quaternion to rotation matrix
+      cv::Mat rotation_est(3, 3, CV_64F);
+      rotation_est = quat2rot(quaternion_est);
+
+      // Set estimated projection matrix
+      pnp_detection_est.set_P_matrix(rotation_est, translation_est);
+
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
+
+
       tstop = (double)clock()/CLOCKS_PER_SEC;
       ttime = tstop-tstart; /*ttime is how long your code run */
       std::cout << "Time Kalman: " << ttime*1000 << "ms" << std::endl;
@@ -423,18 +525,16 @@ int main(int, char**)
 
     double l = 5;
     std::vector<cv::Point2f> pose_points2d;
-    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,0)));
-    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(l,0,0)));
-    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,l,0)));
-    pose_points2d.push_back(pnp_detection.backproject3DPoint(cv::Point3f(0,0,l)));
+    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,0,0)));
+    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(l,0,0)));
+    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,l,0)));
+    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,0,l)));
     draw3DCoordinateAxes(frame, pose_points2d);
 
     tstop = (double)clock()/CLOCKS_PER_SEC;
     ttime = tstop-tstart; /*ttime is how long your code run */
     std::cout << "Time draw pose: " << ttime*1000 << "ms" << std::endl;
     mean_stuff.push_back(ttime);
-
-    drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
 
 
     // -- Step X: Draw correspondences

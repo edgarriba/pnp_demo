@@ -173,8 +173,8 @@ int main(int, char**)
   // Initiate alpha-beta filter
 
   double dt = 0.5;
-  double a = 0.85;
-  double b = 0.005;
+  double a = 1.5;
+  double b = 0.5;
 
   // position
   cv::Mat xk_1 = cv::Mat::zeros(3, 1, CV_64F); // x,y,z
@@ -187,14 +187,14 @@ int main(int, char**)
   cv::Mat xm(3, 1, CV_64F); // measurement position
 
   // orientation
-  cv::Mat qk_1 = cv::Mat::zeros(4, 1, CV_64F); // qw,qx,qy,qz
-  cv::Mat wk_1 = cv::Mat::zeros(3, 1, CV_64F); // wx,wy,wz
+  cv::Mat qk_1 = cv::Mat::zeros(3, 1, CV_64F); // roll, pitch, yaw
+  cv::Mat wk_1 = cv::Mat::zeros(3, 1, CV_64F); // vroll, vpitch, vyaw
 
-  cv::Mat qk(4, 1, CV_64F); // qw,qx,qy,qz
-  cv::Mat wk(3, 1, CV_64F); // wx,wy,wz
+  cv::Mat qk(3, 1, CV_64F); // roll, pitch, yaw
+  cv::Mat wk(3, 1, CV_64F); // vroll, vpitch, vyaw
 
-  cv::Mat r_qk(4, 1, CV_64F); // residual error
-  cv::Mat qm(4, 1, CV_64F); // measurement quaternion
+  cv::Mat r_qk(3, 1, CV_64F); // residual error
+  cv::Mat qm(3, 1, CV_64F); // measurement quaternion
 
 
   // Open the image to register
@@ -440,17 +440,16 @@ int main(int, char**)
       measured_rotation = pnp_detection.get_R_matrix();
 
       // Convert rotation matrix to quaternion
-      cv::Mat measured_quaternion(4, 1, CV_64F);
-      measured_quaternion = rot2quat(measured_rotation);
+      cv::Mat measured_eulers(3, 1, CV_64F);
+      measured_eulers = rot2euler(measured_rotation);
 
       // Set measurement to predict
       xm.at<double>(0) = measured_translation.at<double>(0); // x
       xm.at<double>(1) = measured_translation.at<double>(1); // y
       xm.at<double>(2) = measured_translation.at<double>(2); // z
-      qm.at<double>(0) = measured_quaternion.at<double>(0); // qw
-      qm.at<double>(1) = measured_quaternion.at<double>(1); // qx
-      qm.at<double>(2) = measured_quaternion.at<double>(2); // qy
-      qm.at<double>(3) = measured_quaternion.at<double>(3); // qz
+      qm.at<double>(0) = measured_eulers.at<double>(0); // roll
+      qm.at<double>(1) = measured_eulers.at<double>(1); // pitch
+      qm.at<double>(2) = measured_eulers.at<double>(2); // yaw
 
       // POSITION
       // prediction
@@ -459,26 +458,19 @@ int main(int, char**)
       // residual error
       r_xk = xm - xk;
       // correction
-      xk = xk + r_xk.mul(a);
-      vk = vk + cv::Mat(r_xk.mul(b)).mul(1/dt);
+      xk = xk + r_xk.mul(a); // xk += a * rk
+      vk = vk + cv::Mat(r_xk.mul(b)).mul(1/dt); // vk += (b * rk) / dt
       // update
       xk_1 = xk;
       vk_1 = vk;
 
       // ORIENTATION
       // prediction
-      double wx = wk_1.at<double>(0);
-      double wy = wk_1.at<double>(1);
-      double wz = wk_1.at<double>(2);
-      double q0 = qk_1.at<double>(0);
-      double q1 = qk_1.at<double>(1);
-      double q2 = qk_1.at<double>(2);
-      double q3 = qk_1.at<double>(3);
-      qk.at<double>(0) = -0.5 *( wx*q1 + wy*q2 + wz*q3 );
-      qk.at<double>(1) = 0.5 *( wx*q0 + wy*q3 - wz*q2 );
-      qk.at<double>(2) = 0.5 *( wy*q0 + wz*q1 - wx*q3 );
-      qk.at<double>(3) = 0.5 *( wz*q0 + wx*q2 - wy*q1 );
+      qk = qk_1 + wk_1.mul(dt);
       wk = wk_1;
+      /*wk.at<double>(0) = (qk.at<double>(0)-qk_1.at<double>(0))/dt;
+      wk.at<double>(1) = (qk.at<double>(1)-qk_1.at<double>(1))/dt;
+      wk.at<double>(2) = (qk.at<double>(2)-qk_1.at<double>(2))/dt;*/
       // residual error
       r_qk = qm - qk;
       // correction
@@ -497,20 +489,20 @@ int main(int, char**)
       //std::cout << "Trans : " << translation_est << std::endl << std::endl;
 
       // Estimated quaternion
-      cv::Mat quaternion_est(4, 1, CV_64F);
-      quaternion_est.at<double>(0) = qk.at<double>(9);
-      quaternion_est.at<double>(1) = qk.at<double>(10);
-      quaternion_est.at<double>(2) = qk.at<double>(11);
-      quaternion_est.at<double>(3) = qk.at<double>(12);
+      cv::Mat eulers_est(3, 1, CV_64F);
+      eulers_est.at<double>(0) = qk.at<double>(0);
+      eulers_est.at<double>(1) = qk.at<double>(1);
+      eulers_est.at<double>(2) = qk.at<double>(2);
 
       // Convert estimated quaternion to rotation matrix
       cv::Mat rotation_est(3, 3, CV_64F);
-      rotation_est = quat2rot(quaternion_est);
+      rotation_est = euler2rot(eulers_est);
 
       // Set estimated projection matrix
       pnp_detection_est.set_P_matrix(rotation_est, translation_est);
 
       drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
 
 
       tstop = (double)clock()/CLOCKS_PER_SEC;

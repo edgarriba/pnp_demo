@@ -341,18 +341,21 @@ cv::Mat rot2euler(const cv::Mat & rotationMatrix)
 
   // Assuming the angles are in radians.
   if (m10 > 0.998) { // singularity at north pole
-    x = atan2(m02,m22);
+    x = 0;
     y = CV_PI/2;
-    z = 0;
+    z = atan2(m02,m22);
   }
-  if (m10 < -0.998) { // singularity at south pole
-    x = atan2(m02,m22);
+  else if (m10 < -0.998) { // singularity at south pole
+    x = 0;
     y = -CV_PI/2;
-    z = 0;
+    z = atan2(m02,m22);
   }
-  x = atan2(-m20,m00);
-  y = atan2(-m12,m11);
-  z = asin(m10);
+  else
+  {
+    x = atan2(-m12,m11);
+    y = asin(m10);
+    z = atan2(-m20,m00);
+  }
 
   euler.at<double>(0) = x;
   euler.at<double>(1) = y;
@@ -386,12 +389,12 @@ cv::Mat euler2rot(const cv::Mat & euler)
   double z = euler.at<double>(2);
 
   // Assuming the angles are in radians.
-  double ch = cos(x);
-  double sh = sin(x);
+  double ch = cos(z);
+  double sh = sin(z);
   double ca = cos(y);
   double sa = sin(y);
-  double cb = cos(z);
-  double sb = sin(z);
+  double cb = cos(x);
+  double sb = sin(x);
 
   double m00, m01, m02, m10, m11, m12, m20, m21, m22;
 

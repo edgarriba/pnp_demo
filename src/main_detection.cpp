@@ -232,7 +232,7 @@ int main(int, char**)
   cv::createTrackbar("Pose Confidence", "REAL TIME DEMO", &min_confidence, 100);
 
   //cv::VideoCapture cap(0); // open the default camera
-  cv::VideoCapture cap(0); // open the recorded video
+  cv::VideoCapture cap(video_path); // open the recorded video
   if(!cap.isOpened())  // check if we succeeded
       return -1;
 

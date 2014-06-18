@@ -93,8 +93,8 @@ int main(int, char**)
 
   Model model;
   model.load(yml1_read_path); // load a mesh given the *.ply file path
-  model.load(yml2_read_path); // load a mesh given the *.ply file path
-  model.load(yml3_read_path); // load a mesh given the *.ply file path
+  //model.load(yml2_read_path); // load a mesh given the *.ply file path
+  //model.load(yml3_read_path); // load a mesh given the *.ply file path
 
   Mesh mesh;
   mesh.load(ply_read_path); // load the 3D textured object model
@@ -121,9 +121,10 @@ int main(int, char**)
   R_TEST.at<double>(2,2) = -0.5574411129025829;
 
 
-  /*// Instantiate Kalman Filter
+  // Instantiate Kalman Filter
 
-  int nStates = 13, nMeasurements = 7, nInputs = 0;
+  //int nStates = 13, nMeasurements = 7, nInputs = 0;
+  int nStates = 18, nMeasurements = 6, nInputs = 0;
 
   cv::KalmanFilter KF(nStates, nMeasurements, nInputs, CV_64F);
   cv::Mat measurement(nMeasurements, 1, CV_64F); measurement.setTo(cv::Scalar(0));
@@ -161,15 +162,18 @@ int main(int, char**)
   KF.measurementMatrix.at<double>(0,0) = 1;  // x
   KF.measurementMatrix.at<double>(1,1) = 1;  // y
   KF.measurementMatrix.at<double>(2,2) = 1;  // z
-  KF.measurementMatrix.at<double>(3,9) = 1;  // q1
-  KF.measurementMatrix.at<double>(4,10) = 1; // q2
-  KF.measurementMatrix.at<double>(5,11) = 1; // q3
-  KF.measurementMatrix.at<double>(6,12) = 1; // q4
+  //KF.measurementMatrix.at<double>(3,9) = 1;  // q1
+  //KF.measurementMatrix.at<double>(4,10) = 1; // q2
+  //KF.measurementMatrix.at<double>(5,11) = 1; // q3
+  //KF.measurementMatrix.at<double>(6,12) = 1; // q4
+  KF.measurementMatrix.at<double>(3,9) = 1;  // roll
+  KF.measurementMatrix.at<double>(4,10) = 1; // pitch
+  KF.measurementMatrix.at<double>(5,11) = 1; // yaw
 
   std::cout << "A " << std::endl << KF.transitionMatrix << std::endl;
-  std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;*/
+  std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;
 
-
+/*
   // Initiate alpha-beta filter
 
   double dt = 0.5;
@@ -195,7 +199,7 @@ int main(int, char**)
 
   cv::Mat r_qk(3, 1, CV_64F); // residual error
   cv::Mat qm(3, 1, CV_64F); // measurement quaternion
-
+*/
 
   // Open the image to register
   cv::Mat img_in = cv::imread(img_path, cv::IMREAD_COLOR);
@@ -228,7 +232,7 @@ int main(int, char**)
   cv::createTrackbar("Pose Confidence", "REAL TIME DEMO", &min_confidence, 100);
 
   //cv::VideoCapture cap(0); // open the default camera
-  cv::VideoCapture cap(video_path); // open the recorded video
+  cv::VideoCapture cap(0); // open the recorded video
   if(!cap.isOpened())  // check if we succeeded
       return -1;
 
@@ -322,7 +326,7 @@ int main(int, char**)
 
       // -- Step 6: Estimate the pose using RANSAC approach
       pnp_detection.estimatePoseRANSAC(list_points3d_model_match, list_points2d_scene_match,
-                                       cv::ITERATIVE, inliers_idx,
+                                       cv::EPNP, inliers_idx,
                                        iterationsCount, (double)reprojectionError/10, minInliersCount );
 
       tstop = (double)clock()/CLOCKS_PER_SEC;
@@ -365,7 +369,7 @@ int main(int, char**)
 
       tstart = (double)clock()/CLOCKS_PER_SEC;
 
-      /*// -- Step 10: Kalman Filter
+      // -- Step 10: Kalman Filter
 
       // GOOD MEASUREMENT
       if( !isnan(confidence) && inliers_idx.rows >= min_inliers && confidence > min_confidence)
@@ -377,8 +381,8 @@ int main(int, char**)
         cv::Mat measured_rotation(3, 3, CV_64F);
         measured_rotation = pnp_detection.get_R_matrix();
 
-        cv::Mat measured_quaternion(4, 1, CV_64F);
-        measured_quaternion = rot2quat(measured_rotation);
+        //cv::Mat measured_quaternion(4, 1, CV_64F);
+        //measured_quaternion = rot2quat(measured_rotation);
 
         // Convert rotation matrix to euler angles
         cv::Mat measured_eulers(3, 1, CV_64F);
@@ -389,10 +393,13 @@ int main(int, char**)
         measurement.at<double>(0) = measured_translation.at<double>(0); // x
         measurement.at<double>(1) = measured_translation.at<double>(1); // y
         measurement.at<double>(2) = measured_translation.at<double>(2); // z
-        measurement.at<double>(3) =  measured_quaternion.at<double>(0); // qw
-        measurement.at<double>(4) =  measured_quaternion.at<double>(1); // qx
-        measurement.at<double>(5) =  measured_quaternion.at<double>(2); // qy
-        measurement.at<double>(6) =  measured_quaternion.at<double>(3); // qz
+        //measurement.at<double>(3) =  measured_quaternion.at<double>(0); // qw
+        //measurement.at<double>(4) =  measured_quaternion.at<double>(1); // qx
+        //measurement.at<double>(5) =  measured_quaternion.at<double>(2); // qy
+        //measurement.at<double>(6) =  measured_quaternion.at<double>(3); // qz
+        measurement.at<double>(3) =  measured_eulers.at<double>(0); // roll
+        measurement.at<double>(4) =  measured_eulers.at<double>(1); // pitch
+        measurement.at<double>(5) =  measured_eulers.at<double>(2); // yaw
 
         //drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
 
@@ -414,23 +421,30 @@ int main(int, char**)
       //std::cout << "Trans : " << translation_est << std::endl << std::endl;
 
       // Estimated quaternion
-      cv::Mat quaternion_est(4, 1, CV_64F);
-      quaternion_est.at<double>(0) = estimated.at<double>(9);
-      quaternion_est.at<double>(1) = estimated.at<double>(10);
-      quaternion_est.at<double>(2) = estimated.at<double>(11);
-      quaternion_est.at<double>(3) = estimated.at<double>(12);
+      //cv::Mat quaternion_est(4, 1, CV_64F);
+      //quaternion_est.at<double>(0) = estimated.at<double>(9);
+      //quaternion_est.at<double>(1) = estimated.at<double>(10);
+      //quaternion_est.at<double>(2) = estimated.at<double>(11);
+      //quaternion_est.at<double>(3) = estimated.at<double>(12);
+
+      // Estimated quaternion
+      cv::Mat eulers_est(3, 1, CV_64F);
+      eulers_est.at<double>(0) = estimated.at<double>(9);
+      eulers_est.at<double>(1) = estimated.at<double>(10);
+      eulers_est.at<double>(2) = estimated.at<double>(11);
 
       // Convert estimated quaternion to rotation matrix
       cv::Mat rotation_est(3, 3, CV_64F);
-      rotation_est = quat2rot(quaternion_est);
+      //rotation_est = quat2rot(quaternion_est);
+      rotation_est = euler2rot(eulers_est);
 
       // Set estimated projection matrix
       pnp_detection_est.set_P_matrix(rotation_est, translation_est);
 
-      drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);*/
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
 
 
-      // Alpha-Beta filter
+     /* // Alpha-Beta filter
 
       // Measurements
       cv::Mat measured_translation(3, 1, CV_64F);
@@ -468,9 +482,9 @@ int main(int, char**)
       // prediction
       qk = qk_1 + wk_1.mul(dt);
       wk = wk_1;
-      /*wk.at<double>(0) = (qk.at<double>(0)-qk_1.at<double>(0))/dt;
+      wk.at<double>(0) = (qk.at<double>(0)-qk_1.at<double>(0))/dt;
       wk.at<double>(1) = (qk.at<double>(1)-qk_1.at<double>(1))/dt;
-      wk.at<double>(2) = (qk.at<double>(2)-qk_1.at<double>(2))/dt;*/
+      wk.at<double>(2) = (qk.at<double>(2)-qk_1.at<double>(2))/dt;
       // residual error
       r_qk = qm - qk;
       // correction
@@ -502,7 +516,7 @@ int main(int, char**)
       pnp_detection_est.set_P_matrix(rotation_est, translation_est);
 
       drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
-      drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);*/
 
 
       tstop = (double)clock()/CLOCKS_PER_SEC;
@@ -521,7 +535,7 @@ int main(int, char**)
     pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(l,0,0)));
     pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,l,0)));
     pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,0,l)));
-    draw3DCoordinateAxes(frame, pose_points2d);
+    draw3DCoordinateAxes(frame_vis, pose_points2d);
 
     tstop = (double)clock()/CLOCKS_PER_SEC;
     ttime = tstop-tstart; /*ttime is how long your code run */
@@ -577,7 +591,7 @@ int main(int, char**)
     drawText2(frame_vis, text2, red);
 
     cv::imshow("REAL TIME DEMO", frame_vis);
-    oVideoWriter.write(frame);
+    oVideoWriter.write(frame_vis);
 
     tstop2 = (double)clock()/CLOCKS_PER_SEC;
     ttime2 = tstop2-tstart2; /*ttime is how long your code run */

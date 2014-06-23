@@ -18,8 +18,8 @@
 #include "ModelRegistration.h"
 #include "Utils.h"
 
-//std::string video_path = "../Data/box1.mp4";     // video
-std::string video_path = "../Data/box2.mp4";    // video
+std::string video_path = "../Data/box1.mp4";     // video
+//std::string video_path = "../Data/box2.mp4";    // video
 //std::string video_path = "../Data/box3_hd.MP4";    // video HD
 
 //  COOKIES BOX - ORB
@@ -137,7 +137,7 @@ int main(int, char**)
   initKalmanFilter(KF, nStates, nMeasurements, nInputs, dt);
 
   cv::Mat measurements(nMeasurements, 1, CV_64F); measurements.setTo(cv::Scalar(0));
-
+  bool good_measurement = false;
 
 
   // Get the MODEL INFO
@@ -150,8 +150,8 @@ int main(int, char**)
   // Create & Open Window
   cv::namedWindow("REAL TIME DEMO", CV_WINDOW_KEEPRATIO);
 
-  //cv::VideoCapture cap(0); // open the default camera
-  cv::VideoCapture cap(video_path); // open the recorded video
+  cv::VideoCapture cap(0); // open the default camera
+  //cv::VideoCapture cap(video_path); // open the recorded video
   if(!cap.isOpened())  // check if we succeeded
       return -1;
 
@@ -234,6 +234,8 @@ int main(int, char**)
 
       // -- Step 5: Kalman Filter
 
+      good_measurement = false;
+
       // GOOD MEASUREMENT
       if( inliers_idx.rows >= min_inliers )
       {
@@ -247,6 +249,8 @@ int main(int, char**)
 
         // fill the measurements vector
         fillMeasurements(measurements, translation_measured, rotation_measured);
+
+        good_measurement = true;
       }
 
       // Instantiate estimated translation and rotation
@@ -265,8 +269,14 @@ int main(int, char**)
 
     // -- Step X: Draw pose
 
-    drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
-    drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
+    if(good_measurement)
+    {
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
+    }
+    else
+    {
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
+    }
 
     double l = 5;
     std::vector<cv::Point2f> pose_points2d;

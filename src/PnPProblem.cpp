@@ -107,7 +107,6 @@ bool PnPProblem::estimatePose( const std::vector<cv::Point3f> &list_points3d,
   cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64FC1);
 
   bool useExtrinsicGuess = false;
-  std::cout << "A = "<< std::endl << " "  << _A_matrix << std::endl << std::endl;
 
   // Pose estimation
   bool correspondence = cv::solvePnP( list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec,
@@ -117,13 +116,8 @@ bool PnPProblem::estimatePose( const std::vector<cv::Point3f> &list_points3d,
   Rodrigues(rvec,_R_matrix);
   _t_matrix = tvec;
 
-  std::cout << "R = "<< std::endl << " "  << _R_matrix << std::endl << std::endl;
-  std::cout << "t = "<< std::endl << " "  << _t_matrix << std::endl << std::endl;
-
   // Set projection matrix
   this->set_P_matrix(_R_matrix, _t_matrix);
-
-  std::cout << "P = "<< std::endl << " "  << _P_matrix << std::endl << std::endl;
 
   return correspondence;
 }
@@ -139,13 +133,7 @@ void PnPProblem::estimatePoseRANSAC( const std::vector<cv::Point3f> &list_points
   cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64FC1);
 
   /* RANSAC parameters */
-  bool useExtrinsicGuess = true;
-
-/*
-  int iterationsCount = 100; //100 // increase
-  float reprojectionError = 3; //8.0 // 2.0-3.0
-  int minInliersCount = 20; //100 // 20-30
-*/
+  bool useExtrinsicGuess = false;
 
   // Pose estimation
   cv::solvePnPRansac( list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec,
@@ -170,10 +158,6 @@ std::vector<cv::Point2f> PnPProblem::verify_points(Mesh *mesh)
     cv::Point3f point3d = mesh->getVertex(i);
     cv::Point2f point2d = this->backproject3DPoint(point3d);
     verified_points_2d.push_back(point2d);
-
-    /*cout << "Correspondence " << i << endl;;
-    cout << "P 3D " << tmp_point_3d << endl;
-    cout << "P 2D " << tmp_computed_point_2d << endl;*/
   }
 
   return verified_points_2d;

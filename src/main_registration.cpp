@@ -11,19 +11,27 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
-
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/nonfree/features2d.hpp>
 
   /*
    * Set up the images paths
    */
-  //std::string img_path = "../Data/resized_IMG_3867.JPG"; // 55
-  std::string img_path = "../Data/resized_IMG_3872.JPG"; // 43
-  //std::string img_path = "../Data/resized_IMG_3875.JPG"; // 34
 
-  //std::string img_path = "../Data/box_test.jpg";
+  // COOKIES BOX [718x480]
+  std::string img_path = "../Data/resized_IMG_3875.JPG"; // f 55
+  //std::string img_path = "../Data/resized_IMG_3872.JPG"; // f 43
+  //std::string img_path = "../Data/resized_IMG_3867.JPG"; // f 32
 
+  // COOKIES BOX [2592x1944]
+  //std::string img_path = "../Data/DSC02006.JPG"; // f 45
+  //std::string img_path = "../Data/DSC02007.JPG";   // f 45
+
+  // COOKIES BOX MESH
   std::string ply_read_path = "../Data/box.ply";
-  std::string write_path = "../Data/box3.yml";
+
+  // YAML writting path
+  std::string write_path = "../Data/cookies_ORB_vga_1.yml";
 
   // Boolean the know if the registration it's done
   bool end_registration = false;
@@ -31,9 +39,9 @@
   /*
    * Set up the intrinsic camera parameters: CANON
    */
-  double f = 43; // 55
+  double f = 45; // focal length in mm
   double sx = 22.3, sy = 14.9;
-  double width = 718, height = 480;
+  double width = 2592, height = 1944;
   double params_CANON[] = { width*f/sx,   // fx
                             height*f/sy,  // fy
                             width/2,      // cx
@@ -42,8 +50,8 @@
 
   // Setup the points to register in the image
   // In the order of the *.ply file and starting at 1
-  int n = 7;
-  int pts[] = {1, 2, 3, 5, 6, 7, 8}; // 3 -> 4
+  int n = 8;
+  int pts[] = {1, 2, 3, 4, 5, 6, 7, 8}; // 3 -> 4
 
   /*
    * Set up some basic colors
@@ -99,13 +107,12 @@ int main(int, char**)
   mesh.load(ply_read_path);
 
   // set parameters
-  int numKeyPoints = 2500;
+  int numKeyPoints = 10000;
 
   //Instantiate robust matcher: detector, extractor, matcher
   RobustMatcher rmatcher;
   cv::FeatureDetector * detector = new cv::OrbFeatureDetector(numKeyPoints);
-  rmatcher.setFeatureDetector(detector);
-
+  //rmatcher.setFeatureDetector(detector);
 
   /*
    * GROUND TRUTH OF THE FIRST IMAGE

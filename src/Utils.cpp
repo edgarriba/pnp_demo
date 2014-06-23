@@ -167,9 +167,9 @@ void drawObjectMesh(cv::Mat image, const Mesh *mesh, PnPProblem *pnpProblem, cv:
     cv::Point2f point_2d_1 = pnpProblem->backproject3DPoint(point_3d_1);
     cv::Point2f point_2d_2 = pnpProblem->backproject3DPoint(point_3d_2);
 
-    cv::line(image, point_2d_0, point_2d_1, color);
-    cv::line(image, point_2d_1, point_2d_2, color);
-    cv::line(image, point_2d_2, point_2d_0, color);
+    cv::line(image, point_2d_0, point_2d_1, color, 1);
+    cv::line(image, point_2d_1, point_2d_2, color, 1);
+    cv::line(image, point_2d_2, point_2d_0, color, 1);
   }
 }
 
@@ -190,137 +190,6 @@ double get_rotation_error(const cv::Mat &R_true, const cv::Mat &R)
   cv::Rodrigues(error_mat, error_vec);
 
   return cv::norm(error_vec);
-}
-
-double get_variance(const std::vector<cv::Point3f> list_points3d)
-{
-  cv::Point3f p_mean, p_var;
-
-  int n = list_points3d.size();
-  for(unsigned int i = 0; i < n; ++i)
-  {
-    p_mean.x += list_points3d[i].x;
-    p_mean.y += list_points3d[i].y;
-    p_mean.z += list_points3d[i].z;
-  }
-  p_mean.x /= n;
-  p_mean.y /= n;
-  p_mean.z /= n;
-
-  for(unsigned int i = 0; i < n; ++i)
-  {
-    p_var.x += list_points3d[i].x - p_mean.x ;
-    p_var.y += list_points3d[i].y - p_mean.y ;
-    p_var.z += list_points3d[i].z - p_mean.z ;
-  }
-  p_var.x /= n;
-  p_var.y /= n;
-  p_var.z /= n;
-
-  // norm
-  return sqrt( pow(p_var.x, 2) + pow(p_var.y, 2) + pow(p_var.z, 2) );
-
-}
-
-// w is equal to angular_velocity*time_between_frames
-cv::Mat rot2quat(cv::Mat &rotationMatrix)
-{
-  cv::Mat q(4, 1, CV_64F);
-  double qw, qx, qy, qz;
-
-  double m00 = rotationMatrix.at<double>(0,0);
-  double m01 = rotationMatrix.at<double>(0,1);
-  double m02 = rotationMatrix.at<double>(0,2);
-  double m10 = rotationMatrix.at<double>(1,0);
-  double m11 = rotationMatrix.at<double>(1,1);
-  double m12 = rotationMatrix.at<double>(1,2);
-  double m20 = rotationMatrix.at<double>(2,0);
-  double m21 = rotationMatrix.at<double>(2,1);
-  double m22 = rotationMatrix.at<double>(2,2);
-
-  double tr = m00 + m11 + m22;
-
-  if (tr > 0)
-  {
-    double S = sqrt(tr+1.0) * 2; // S=4*qw
-    qw = 0.25 * S;
-    qx = (m21 - m12) / S;
-    qy = (m02 - m20) / S;
-    qz = (m10 - m01) / S;
-  } else if ((m00 > m11)&(m00 > m22))
-  {
-    double S = sqrt(1.0 + m00 - m11 - m22) * 2; // S=4*qx
-    qw = (m21 - m12) / S;
-    qx = 0.25 * S;
-    qy = (m01 + m10) / S;
-    qz = (m02 + m20) / S;
-  } else if (m11 > m22)
-  {
-    double S = sqrt(1.0 + m11 - m00 - m22) * 2; // S=4*qy
-    qw = (m02 - m20) / S;
-    qx = (m01 + m10) / S;
-    qy = 0.25 * S;
-    qz = (m12 + m21) / S;
-  }
-  else
-  {
-    float S = sqrt(1.0 + m22 - m00 - m11) * 2; // S=4*qz
-    qw = (m10 - m01) / S;
-    qx = (m02 + m20) / S;
-    qy = (m12 + m21) / S;
-    qz = 0.25 * S;
-  }
-
-  // normalisation
-  double n = sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
-  qw /= n;
-  qx /= n;
-  qy /= n;
-  qz /= n;
-
-  q.at<double>(0,0) = qw;
-  q.at<double>(0,1) = qx;
-  q.at<double>(0,2) = qy;
-  q.at<double>(0,3) = qz;
-
-  return q;
-}
-
-// w is equal to angular_velocity*time_between_frames
-cv::Mat quat2rot(cv::Mat &q)
-{
-  cv::Mat rotationMatrix(3, 3, CV_64F);
-
-  double w = q.at<double>(0);
-  double x = q.at<double>(1);
-  double y = q.at<double>(2);
-  double z = q.at<double>(3);
-
-  double n = w * w + x * x + y * y + z * z;
-  double s = 0;
-  if(n != 0) s = 2/n;
-
-  double wx = s * w * x;
-  double wy = s * w * y;
-  double wz = s * w * z;
-  double xx = s * x * x;
-  double xy = s * x * y;
-  double xz = s * x * z;
-  double yy = s * y * y;
-  double yz = s * y * z;
-  double zz = s * z * z;
-
-  rotationMatrix.at<double>(0,0) = 1 - ( yy + zz );
-  rotationMatrix.at<double>(0,1) = xy - wz;
-  rotationMatrix.at<double>(0,2) = xz + wy;
-  rotationMatrix.at<double>(1,0) = xy + wz;
-  rotationMatrix.at<double>(1,1) = 1 - ( xx + zz );
-  rotationMatrix.at<double>(1,2) = yz - wx;
-  rotationMatrix.at<double>(2,0) = xz - wy;
-  rotationMatrix.at<double>(2,1) = yz + wx;
-  rotationMatrix.at<double>(2,2) = 1 - ( xx + yy );
-
-  return rotationMatrix;
 }
 
 cv::Mat rot2euler(const cv::Mat & rotationMatrix)
@@ -360,22 +229,6 @@ cv::Mat rot2euler(const cv::Mat & rotationMatrix)
   euler.at<double>(0) = x;
   euler.at<double>(1) = y;
   euler.at<double>(2) = z;
-
-  return euler;
-}
-
-cv::Mat quat2euler(const cv::Mat & q)
-{
-  cv::Mat euler(3,1,CV_64F);
-
-  double qw = q.at<double>(0);
-  double qx = q.at<double>(1);
-  double qy = q.at<double>(2);
-  double qz = q.at<double>(3);
-
-  double theta = atan2( 2*(qy*qz+qw*qx) , pow(qw,2)-pow(qx,2)-pow(qy,2)+pow(qz,2) );
-  double phi = asin( -2*(qx*qz-qw*qy) );
-  double psi = atan2( 2*(qx*qy+qw*qz) , pow(qw,2)+pow(qx,2)-pow(qy,2)-pow(qz,2) );
 
   return euler;
 }

@@ -20,14 +20,15 @@
 
 class RobustMatcher {
 public:
-  RobustMatcher() : ratio_(0.65f), refineF_(true), confidence_(0.99), distance_(3.0)
+  RobustMatcher() : ratio_(0.8f)
   {
     // ORB is the default feature
     detector_ = new cv::OrbFeatureDetector();
     extractor_ = new cv::OrbDescriptorExtractor();
+
+    // BruteFroce matcher with Norm Hamming is the default matcher
     matcher_ = new cv::BFMatcher(cv::NORM_HAMMING, false);
 
-   // matcher_ = new cv::FlannBasedMatcher(new cv::flann::LshIndexParams(5, 24, 2));
   }
   virtual ~RobustMatcher();
 
@@ -40,16 +41,9 @@ public:
   // Set the matcher
   void setDescriptorMatcher(cv::DescriptorMatcher * match) {  matcher_ = match; }
 
-  // Set confidence level
-  void setConfidenceLevel(double conf) { confidence_ = conf; }
-
-  //Set MinDistanceToEpipolar
-  void setMinDistanceToEpipolar( double dist) { distance_ = dist; }
-
   void computeKeyPoints( const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints)
   {
     detector_->detect(image, keypoints);
-
   }
 
   void computeDescriptors( const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors)
@@ -73,23 +67,18 @@ public:
                      const std::vector<std::vector<cv::DMatch> >& matches2,
                      std::vector<cv::DMatch>& symMatches );
 
-  // Match feature points using symmetry test and RANSAC
-  // returns fundemental matrix
-  void robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+  // Match feature points using ratio test and symmetry test
+  void robustMatchFull( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                     std::vector<cv::KeyPoint>& keypoints_frame,
                     const std::vector<cv::KeyPoint>& keypoints_model,
                     const cv::Mat& descriptors_model );
 
-  void crossMatch ( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
-                            std::vector<cv::KeyPoint>& keypoints_frame,
-                            const std::vector<cv::KeyPoint>& keypoints_model,
-                            const cv::Mat& descriptors_model );
 
-  void crossOpenCVMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+  // Match feature points using ratio test
+  void robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                       std::vector<cv::KeyPoint>& keypoints_frame,
                       const std::vector<cv::KeyPoint>& keypoints_model,
                       const cv::Mat& descriptors_model );
-
 
 private:
   // pointer to the feature point detector object
@@ -98,12 +87,8 @@ private:
   cv::DescriptorExtractor * extractor_;
   // pointer to the matcher object
   cv::DescriptorMatcher * matcher_;
-
-
-  float ratio_; // max ratio between 1st and 2nd NN
-  bool refineF_; // if true will refine the F matrix
-  double distance_; // min distance to epipolar
-  double confidence_; // confidence level (probability)
+  // max ratio between 1st and 2nd NN
+  float ratio_;
 };
 
 #endif /* ROBUSTMATCHER_H_ */

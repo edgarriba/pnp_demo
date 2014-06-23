@@ -215,7 +215,7 @@ int main(int, char**)
   cv::Mat descriptors_model = model.get_descriptors();
 
   // Model variance
-  double model_variance = get_variance(list_points3d_model);
+ /// double model_variance = get_variance(list_points3d_model);
 
   // Robust Match
   std::vector<cv::DMatch> good_matches;
@@ -250,7 +250,7 @@ int main(int, char**)
     pnp_verification.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
                                          cv::ITERATIVE, inliers_idx,
                                          iterationsCount, reprojectionError, minInliersCount );
-    std::cout <<  "Num. inliers: " << inliers_idx.rows << std::endl;
+
 
     // -- Step 7: Catch the inliers keypoints
     for(int inliers_index = 0; inliers_index < inliers_idx.rows; ++inliers_index)
@@ -274,9 +274,9 @@ int main(int, char**)
     }
 
     // -- Step 8: Calculate covariance
-    double detection_variance = get_variance(list_points3d_inliers);
-    double confidence = detection_variance/model_variance;
-    std::cout << "Detection Confidence: " << confidence << std::endl;
+    //double detection_variance = get_variance(list_points3d_inliers);
+    //double confidence = detection_variance/model_variance;
+    //std::cout << "Detection Confidence: " << confidence << std::endl;
 
     // -- Step 9: Draw pose
     int min_inliers = 5;

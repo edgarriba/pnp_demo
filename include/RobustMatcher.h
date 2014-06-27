@@ -13,10 +13,8 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/nonfree/nonfree.hpp>
-#include <opencv2/contrib/contrib.hpp>
 
 class RobustMatcher {
 public:
@@ -41,20 +39,14 @@ public:
   // Set the matcher
   void setDescriptorMatcher(cv::DescriptorMatcher * match) {  matcher_ = match; }
 
-  void computeKeyPoints( const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints)
-  {
-    detector_->detect(image, keypoints);
-  }
+  // Compute the keypoints of an image
+  void computeKeyPoints( const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints);
 
-  void computeDescriptors( const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors)
-  {
-    extractor_->compute(image, keypoints, descriptors);
-  }
+  // Compute the descriptors of an image given its keypoints
+  void computeDescriptors( const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors);
 
-
-  //Set ratio
+  // Set ratio parameter for the ratio test
   void setRatio( float rat) { ratio_ = rat; }
-
 
   // Clear matches for which NN ratio is > than threshold
   // return the number of removed points
@@ -67,18 +59,15 @@ public:
                      const std::vector<std::vector<cv::DMatch> >& matches2,
                      std::vector<cv::DMatch>& symMatches );
 
-  // Match feature points using ratio test and symmetry test
-  void robustMatchFull( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
-                    std::vector<cv::KeyPoint>& keypoints_frame,
-                    const std::vector<cv::KeyPoint>& keypoints_model,
-                    const cv::Mat& descriptors_model );
-
-
-  // Match feature points using ratio test
+  // Match feature points using ratio and symmetry test
   void robustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
                       std::vector<cv::KeyPoint>& keypoints_frame,
-                      const std::vector<cv::KeyPoint>& keypoints_model,
                       const cv::Mat& descriptors_model );
+
+ // Match feature points using ratio test
+ void fastRobustMatch( const cv::Mat& frame, std::vector<cv::DMatch>& good_matches,
+                       std::vector<cv::KeyPoint>& keypoints_frame,
+                       const cv::Mat& descriptors_model );
 
 private:
   // pointer to the feature point detector object

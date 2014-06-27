@@ -23,13 +23,7 @@ std::string video_path = "../Data/box1.mp4";     // video
 //std::string video_path = "../Data/box3_hd.MP4";    // video HD
 
 //  COOKIES BOX - ORB
-std::string yml1_read_path = "../Data/cookies_ORB_vga_1.yml"; // 3dpts + descriptors
-std::string yml2_read_path = "../Data/cookies_ORB_vga_2.yml";
-std::string yml3_read_path = "../Data/cookies_ORB_vga_3.yml";
-
-//  COOKIES BOX HD - ORB
-//std::string yml1_read_path = "../Data/cookies_ORB_hd_1.yml"; // 3dpts + descriptors
-//std::string yml2_read_path = "../Data/cookies_ORB_hd_2.yml";
+std::string yml_read_path = "../Data/cookies_ORB.yml"; // 3dpts + descriptors
 
 // COOKIES BOX MESH
 std::string ply_read_path = "../Data/box.ply";   // mesh
@@ -39,9 +33,10 @@ std::string ply_read_path = "../Data/box.ply";   // mesh
  * Set up the intrinsic camera parameters: UVC WEBCAM
  */
 
-double f = 55;
-double sx = 22.3, sy = 14.9;
-double width = 640, height = 480;
+double f = 55;                           // focal length in mm
+double sx = 22.3, sy = 14.9;             // sensor size
+double width = 640, height = 480;        // image size
+
 double params_WEBCAM[] = { width*f/sx,   // fx
                            height*f/sy,  // fy
                            width/2,      // cx
@@ -63,12 +58,13 @@ int numKeyPoints = 2000; // 2500
 float ratio = 0.70f; // 80
 
 // RANSAC parameters
-int iterationsCount = 500;
-int reprojectionError = 2.0;
-int minInliersCount = 70;
+
+int iterationsCount = 500;  // number of Ransac iterations.
+int reprojectionError = 2.0;  // maximum allowed distance to consider it an inlier.
+int minInliersCount = 70; // thresold of found inliers.
 
 // after RANSAC
-int min_inliers = 20; // 20
+int minInliersKalman = 10; // 20
 
 
 /**********************************************************************************************************/
@@ -92,7 +88,7 @@ void fillMeasurements( cv::Mat &measurements,
 /**********************************************************************************************************/
 
 
-int main(int, char**)
+int main(int argc, char *argv[])
 {
 
   std::cout << "!!!Hello Detection!!!" << std::endl;
@@ -100,34 +96,30 @@ int main(int, char**)
   PnPProblem pnp_detection(params_WEBCAM);
   PnPProblem pnp_detection_est(params_WEBCAM);
 
-  Model model;
-  //model.load(yml1_read_path); // load a mesh given the *.ply file path
-  model.load(yml2_read_path); // load a mesh given the *.ply file path
- // model.load(yml3_read_path); // load a mesh given the *.ply file path
+  Model model;               // instantiate Model object
+  model.load(yml_read_path); // load a 3D textured object model
 
-  Mesh mesh;
-  mesh.load(ply_read_path); // load the 3D textured object model
+  Mesh mesh;                // instantiate Mesh object
+  mesh.load(ply_read_path); // load an object mesh
 
 
-  // Instantiate RobustMatcher
+  RobustMatcher rmatcher;                                                     // instantiate RobustMatcher
 
-  RobustMatcher rmatcher;
+  cv::FeatureDetector * detector = new cv::OrbFeatureDetector(numKeyPoints);  // instatiate ORB feature detector
+  cv::DescriptorExtractor * extractor = new cv::OrbDescriptorExtractor();     // instatiate ORB descriptor extractor
 
-  // set ratio test parameter
-  rmatcher.setRatio(ratio);
+  rmatcher.setFeatureDetector(detector);                                      // set feature detector
+  rmatcher.setDescriptorExtractor(extractor);                                 // set descriptor extractor
 
-  // Instantiate and set robust Matcher: detector
-  cv::FeatureDetector * detector = new cv::OrbFeatureDetector(numKeyPoints);
-  rmatcher.setFeatureDetector(detector);
 
-  // Instantiate Flann matcher
-  cv::Ptr<cv::flann::IndexParams> indexParams = cv::makePtr<cv::flann::LshIndexParams>(6, 12, 1);
-  cv::Ptr<cv::flann::SearchParams> searchParams = cv::makePtr<cv::flann::SearchParams>(50);
+  cv::Ptr<cv::flann::IndexParams> indexParams = cv::makePtr<cv::flann::LshIndexParams>(6, 12, 1); // instantiate LSH index parameters
+  cv::Ptr<cv::flann::SearchParams> searchParams = cv::makePtr<cv::flann::SearchParams>(50);       // instantiate flann search parameters
 
-  // Set matcher type to RobusMatcher
-  cv::DescriptorMatcher * matcher = new cv::FlannBasedMatcher(indexParams, searchParams);
-  rmatcher.setDescriptorMatcher(matcher);
+  cv::DescriptorMatcher * matcher = new cv::FlannBasedMatcher(indexParams, searchParams);         // instantiate FlannBased matcher
+  rmatcher.setDescriptorMatcher(matcher);                                                         // set matcher
 
+
+  rmatcher.setRatio(ratio); // set ratio test parameter
 
   // Instantiate Kalman Filter
   int nStates = 18, nMeasurements = 6, nInputs = 0;
@@ -141,19 +133,24 @@ int main(int, char**)
 
 
   // Get the MODEL INFO
-  std::vector<cv::Point2f> list_points2d_model = model.get_points2d_in();
-  std::vector<cv::Point3f> list_points3d_model = model.get_points3d();
-  std::vector<cv::KeyPoint> keypoints_model = model.get_keypoints();
-  cv::Mat descriptors_model = model.get_descriptors();
+
+  std::vector<cv::Point3f> list_points3d_model = model.get_points3d();  // list with model 3D coordinates
+  cv::Mat descriptors_model = model.get_descriptors();                  // list with descriptors of each 3D coordinate
 
 
   // Create & Open Window
   cv::namedWindow("REAL TIME DEMO", CV_WINDOW_KEEPRATIO);
 
-  cv::VideoCapture cap(0); // open the default camera
-  //cv::VideoCapture cap(video_path); // open the recorded video
-  if(!cap.isOpened())  // check if we succeeded
-      return -1;
+
+  cv::VideoCapture cap;                           // instantiate VideoCapture
+  (argc < 2) ? cap.open(0) : cap.open(argv[1]);   // open the default camera device
+                                                  // or a recorder video
+
+  if(!cap.isOpened())   // check if we succeeded
+  {
+    std::cout << "Could not open the camera device" << std::endl;
+    return -1;
+  }
 
 
   // start and end times
@@ -174,46 +171,54 @@ int main(int, char**)
   double tstart2, tstop2, ttime2; // algorithm metrics
   double tstart, tstop, ttime; // algorithm metrics
 
+  bool fast_match = true;
+
   cv::Mat frame, frame_vis;
 
-  // Loop videostream
-  while(cap.read(frame) && cv::waitKey(30) != 27)
+  while(cap.read(frame) && cv::waitKey(30) != 27) // capture frame until ESC is pressed
   {
 
-    // get a new frame from camera
-    frame_vis = frame.clone();
+    frame_vis = frame.clone();    // refresh visualisation frame
+
 
     // -- Step 1: Robust matching between model descriptors and scene descriptors
-    std::vector<cv::DMatch> good_matches;
-    std::vector<cv::KeyPoint> keypoints_scene;
 
-    rmatcher.robustMatch(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
-    //rmatcher.robustMatchFull(frame, good_matches, keypoints_scene, keypoints_model, descriptors_model);
+    std::vector<cv::DMatch> good_matches;       // to obtain the 3D points of the model
+    std::vector<cv::KeyPoint> keypoints_scene;  // to obtain the 2D points of the scene
+
+
+    if(fast_match)
+    {
+      rmatcher.robustMatch(frame, good_matches, keypoints_scene, descriptors_model);
+    }
+    else
+    {
+      rmatcher.fastRobustMatch(frame, good_matches, keypoints_scene, descriptors_model);
+    }
+
+
+    // -- Step 2: Find out the 2D/3D correspondences
+
+    std::vector<cv::Point3f> list_points3d_model_match; // container for the model 3D coordinates found in the scene
+    std::vector<cv::Point2f> list_points2d_scene_match; // container for the model 2D coordinates found in the scene
+
+    for(unsigned int match_index = 0; match_index < good_matches.size(); ++match_index)
+    {
+      cv::Point3f point3d_model = list_points3d_model[ good_matches[match_index].trainIdx ];  // 3D point from model
+      cv::Point2f point2d_scene = keypoints_scene[ good_matches[match_index].queryIdx ].pt; // 2D point from the scene
+      list_points3d_model_match.push_back(point3d_model);         // add 3D point
+      list_points2d_scene_match.push_back(point2d_scene);         // add 2D point
+    }
+
+    // Draw outliers
+    draw2DPoints(frame_vis, list_points2d_scene_match, red);
+
 
     cv::Mat inliers_idx;
-    std::vector<cv::DMatch> matches_inliers;
     std::vector<cv::Point2f> list_points2d_inliers;
-    std::vector<cv::Point3f> list_points3d_inliers;
 
-
-    if(good_matches.size() > 0) // If no matches, RANSAC crashes
+    if(good_matches.size() > 0) // None matches, then RANSAC crashes
     {
-
-      // -- Step 2: Find out the 2D/3D correspondences
-      std::vector<cv::Point3f> list_points3d_model_match;
-      std::vector<cv::Point2f> list_points2d_scene_match;
-      for(unsigned int match_index = 0; match_index < good_matches.size(); ++match_index)
-      {
-        cv::Point3f point3d_model = list_points3d_model[ good_matches[match_index].trainIdx ];
-        cv::Point2f point2d_scene = keypoints_scene[ good_matches[match_index].queryIdx ].pt;
-        list_points3d_model_match.push_back(point3d_model);
-        list_points2d_scene_match.push_back(point2d_scene);
-      }
-
-
-      // Draw outliers
-      draw2DPoints(frame_vis, list_points2d_scene_match, red);
-
 
       // -- Step 3: Estimate the pose using RANSAC approach
       pnp_detection.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
@@ -221,15 +226,16 @@ int main(int, char**)
                                         iterationsCount, reprojectionError, minInliersCount );
 
 
-      // -- Step 4: Catch the inliers keypoints
+      // -- Step 4: Catch the inliers keypoints to draw
       for(int inliers_index = 0; inliers_index < inliers_idx.rows; ++inliers_index)
       {
-        int n = inliers_idx.at<int>(inliers_index);
-        cv::Point2f point2d = list_points2d_scene_match[n];
-        cv::Point3f point3d = list_points3d_model_match[n];
-        list_points2d_inliers.push_back(point2d);
-        list_points3d_inliers.push_back(point3d);
+        int n = inliers_idx.at<int>(inliers_index);         // i-inlier
+        cv::Point2f point2d = list_points2d_scene_match[n]; // i-inlier point 2D
+        list_points2d_inliers.push_back(point2d);           // add i-inlier to list
       }
+
+      // Draw inliers points 2D
+      draw2DPoints(frame_vis, list_points2d_inliers, blue);
 
 
       // -- Step 5: Kalman Filter
@@ -237,13 +243,14 @@ int main(int, char**)
       good_measurement = false;
 
       // GOOD MEASUREMENT
-      if( inliers_idx.rows >= min_inliers )
+      if( inliers_idx.rows >= minInliersKalman )
       {
-        // Get measured translation
+
+        // Get the measured translation
         cv::Mat translation_measured(3, 1, CV_64F);
         translation_measured = pnp_detection.get_t_matrix();
 
-        // Get measured rotation
+        // Get the measured rotation
         cv::Mat rotation_measured(3, 3, CV_64F);
         rotation_measured = pnp_detection.get_R_matrix();
 
@@ -251,6 +258,7 @@ int main(int, char**)
         fillMeasurements(measurements, translation_measured, rotation_measured);
 
         good_measurement = true;
+
       }
 
       // Instantiate estimated translation and rotation
@@ -260,6 +268,7 @@ int main(int, char**)
       // update the Kalman filter with good measurements
       updateKalmanFilter( KF, measurements,
                           translation_estimated, rotation_estimated);
+
 
       // -- Step 6: Set estimated projection matrix
       pnp_detection_est.set_P_matrix(rotation_estimated, translation_estimated);
@@ -285,12 +294,6 @@ int main(int, char**)
     pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,l,0)));
     pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,0,l)));
     draw3DCoordinateAxes(frame_vis, pose_points2d);
-
-
-    // -- Step X: Draw inliers
-
-    draw2DPoints(frame_vis, list_points2d_inliers, blue);
-
 
     // FRAME RATE
 
@@ -341,10 +344,9 @@ void initKalmanFilter(cv::KalmanFilter &KF, int nStates, int nMeasurements, int 
 
   //init Kalman
   KF.init(nStates, nMeasurements, nInputs, CV_64F);
-  std::cout << nStates << std::endl;
 
   cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));
-  cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-2));
+  cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-4));
   cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));
 
 

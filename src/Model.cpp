@@ -57,46 +57,19 @@ void Model::save(const std::string path)
   storage.release();
 }
 
-/** Save a CSV file and fill the object mesh */
+/** Load a YAML file using OpenCv functions **/
 void Model::load(const std::string path)
 {
-  //list_points3d_in_.clear();
-  //list_points2d_in_.clear();
+  cv::Mat points3d_mat;
 
   cv::FileStorage storage(path, cv::FileStorage::READ);
-
-  cv::Mat points3d_mat, points2d_mat, descriptors, keypoints;
-  std::vector<cv::Point3f> points3d_vec;
-  std::vector<cv::Point2f> points2d_vec;
-  //cv::Mat descriptors,
-
   storage["points_3d"] >> points3d_mat;
-  storage["points_2d"] >> points2d_mat;
-//  storage["keypoints"] >> list_keypoints_;
-  storage["descriptors"] >> descriptors;
+  storage["descriptors"] >> descriptors_;
 
-  points3d_mat.copyTo(points3d_vec);
-  points2d_mat.copyTo(points2d_vec);
-
-  for (int i = 0; i < points3d_vec.size(); ++i)
-  {
-
-    list_points3d_in_.push_back(points3d_vec.at(i));
-    list_points2d_in_.push_back(points2d_vec.at(i));
-    descriptors_.push_back(descriptors.row(i));
-  }
-
-  // load keypoints
-  for (int i = 0; i < keypoints.cols; ++i) {
-    cv::Vec<float, 7> v = keypoints.at< cv::Vec<float, 7> >(i,0);
-    cv::KeyPoint kp(v[0], v[1], v[2], v[3], v[4], (int)v[5], (int)v[6]);
-    list_keypoints_.push_back(kp);
-  }
+  points3d_mat.copyTo(list_points3d_in_);
 
   storage.release();
 
-  CsvWriter writter("../Data/box.xyz", " ");
-  writter.writeXYZ(list_points3d_in_);
 }
 
 

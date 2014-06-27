@@ -98,7 +98,7 @@ static void onMouseModelRegistration( int event, int x, int y, int, void* )
  *
  */
 
-int main(int, char**)
+int main(int argc, char *argv[])
 {
 
   std::cout << "!!!Hello Registration!!!" << std::endl;

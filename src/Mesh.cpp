@@ -61,8 +61,9 @@ Mesh::~Mesh()
 }
 
 
-/** Load a CSV file and fill the object mesh */
-void Mesh::load(const std::string path) {
+/** Load a CSV with *.ply format **/
+void Mesh::load(const std::string path)
+{
 
   // Create the reader
   CsvReader csvReader(path);

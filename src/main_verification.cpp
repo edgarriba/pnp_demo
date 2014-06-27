@@ -22,12 +22,10 @@
   /*
    * Set up the images paths
    */
-  std::string img_path = "../Data/resized_IMG_3875.JPG";
-  //std::string img_path = "../Data/box_test.jpg";
 
   std::string img_verification_path = "../Data/resized_IMG_3872.JPG";
   std::string ply_read_path = "../Data/box.ply";
-  std::string yml_read_path = "../Data/box.yml";
+  std::string yml_read_path = "../Data/cookies_ORB.yml";
 
   // Boolean the know if the registration it's done
   bool end_registration = false;
@@ -115,13 +113,18 @@ int main(int, char**)
   rmatcher.setFeatureDetector(detector);
   rmatcher.setRatio(0.80);
 
+  // RANSAC parameters
+  int iterationsCount = 500;
+  int reprojectionError = 2.0;
+  int minInliersCount = 70;
+
 
   /*
   * GROUND TRUTH SECOND IMAGE
   *
   */
 
-  cv::Mat img_in, img_in2, img_vis;
+  cv::Mat img_in, img_vis;
 
   // Setup for new registration
   registration.setNumMax(n);
@@ -133,10 +136,9 @@ int main(int, char**)
   cv::setMouseCallback("MODEL GROUND TRUTH", onMouseModelVerification, 0 );
 
   // Open the image to register
-  img_in = cv::imread(img_path, cv::IMREAD_COLOR);
-  img_in2 = cv::imread(img_verification_path, cv::IMREAD_COLOR);
+  img_in = cv::imread(img_verification_path, cv::IMREAD_COLOR);
 
-  if (!img_in.data || !img_in2.data)
+  if (!img_in.data)
   {
     std::cout << "Could not open or find the image" << std::endl;
     return -1;
@@ -149,7 +151,7 @@ int main(int, char**)
   while ( cv::waitKey(30) < 0 )
   {
     // Refresh debug image
-    img_vis = img_in2.clone();
+    img_vis = img_in.clone();
 
     // Current registered points
     std::vector<cv::Point2f> list_points2d = registration.get_points2d();
@@ -208,51 +210,56 @@ int main(int, char**)
    *
    */
 
+   // refresh visualisation image
+  img_vis = img_in.clone();
+
   // Get the MODEL INFO
   std::vector<cv::Point2f> list_points2d_model = model.get_points2d_in();
   std::vector<cv::Point3f> list_points3d_model = model.get_points3d();
   std::vector<cv::KeyPoint> keypoints_model = model.get_keypoints();
   cv::Mat descriptors_model = model.get_descriptors();
 
-  // Model variance
- /// double model_variance = get_variance(list_points3d_model);
+  // -- Step 1: Robust matching between model descriptors and scene descriptors
 
-  // Robust Match
-  std::vector<cv::DMatch> good_matches;
-  std::vector<cv::KeyPoint> keypoints_scene;
+  std::vector<cv::DMatch> good_matches;       // to obtain the 3D points of the model
+  std::vector<cv::KeyPoint> keypoints_scene;  // to obtain the 2D points of the scene
 
-  rmatcher.robustMatch(img_in2, good_matches, keypoints_scene, keypoints_model, descriptors_model);
-  std::cout <<  "Filtered points: " << good_matches.size() << std::endl;
+  //rmatcher.robustMatch(frame, good_matches, keypoints_scene, descriptors_model);
+  rmatcher.robustMatch(img_vis, good_matches, keypoints_scene, descriptors_model);
 
   cv::Mat inliers_idx;
   std::vector<cv::DMatch> matches_inliers;
-  std::vector<cv::KeyPoint> keypoints_inliers;
   std::vector<cv::Point2f> list_points2d_inliers;
   std::vector<cv::Point3f> list_points3d_inliers;
 
-  if(good_matches.size() > 0) // if == 0, RANSAC crashes
+
+  if(good_matches.size() > 0) // If no matches, RANSAC crashes
   {
-    // -- Step 5: Find out the 2D/3D correspondences
-    std::vector<cv::Point3f> list_points3d_model_match;
-    std::vector<cv::Point2f> list_points2d_scene_match;
+
+    // -- Step 2: Find out the 2D/3D correspondences
+
+    std::vector<cv::Point3f> list_points3d_model_match; // container for the model 3D coordinates found in the scene
+    std::vector<cv::Point2f> list_points2d_scene_match; // container for the model 2D coordinates found in the scene
+
     for(unsigned int match_index = 0; match_index < good_matches.size(); ++match_index)
     {
-      cv::Point3f point3d_model = list_points3d_model[ good_matches[match_index].trainIdx ];
-      cv::Point2f point2d_scene = keypoints_scene[ good_matches[match_index].queryIdx ].pt;
-      list_points3d_model_match.push_back(point3d_model);
-      list_points2d_scene_match.push_back(point2d_scene);
+      cv::Point3f point3d_model = list_points3d_model[ good_matches[match_index].trainIdx ];  // 3D point from model
+      cv::Point2f point2d_scene = keypoints_scene[ good_matches[match_index].queryIdx ].pt; // 2D point from the scene
+      list_points3d_model_match.push_back(point3d_model);         // add 3D point
+      list_points2d_scene_match.push_back(point2d_scene);         // add 2D point
     }
 
-    // -- Step 6: Estimate the pose using RANSAC approach
-    int iterationsCount = 2500;
-    float reprojectionError = 3.0;
-    int minInliersCount = 20;
+    // Draw outliers
+    draw2DPoints(img_vis, list_points2d_scene_match, red);
+
+
+    // -- Step 3: Estimate the pose using RANSAC approach
     pnp_verification.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
                                          cv::ITERATIVE, inliers_idx,
                                          iterationsCount, reprojectionError, minInliersCount );
 
 
-    // -- Step 7: Catch the inliers keypoints
+    // -- Step 4: Catch the inliers keypoints
     for(int inliers_index = 0; inliers_index < inliers_idx.rows; ++inliers_index)
     {
       int n = inliers_idx.at<int>(inliers_index);
@@ -260,67 +267,18 @@ int main(int, char**)
       cv::Point3f point3d = list_points3d_model_match[n];
       list_points2d_inliers.push_back(point2d);
       list_points3d_inliers.push_back(point3d);
-
-      unsigned int match_index = 0;
-      bool is_equal = equal_point( point2d, keypoints_scene[good_matches[match_index].queryIdx].pt );
-      while ( !is_equal && match_index < good_matches.size() )
-      {
-        match_index++;
-        is_equal = equal_point( point2d, keypoints_scene[good_matches[match_index].queryIdx].pt );
-      }
-
-      matches_inliers.push_back(good_matches[match_index]);
-      keypoints_inliers.push_back(keypoints_scene[good_matches[match_index].queryIdx]);
     }
 
-    // -- Step 8: Calculate covariance
-    //double detection_variance = get_variance(list_points3d_inliers);
-    //double confidence = detection_variance/model_variance;
-    //std::cout << "Detection Confidence: " << confidence << std::endl;
-
-    // -- Step 9: Draw pose
-    int min_inliers = 5;
-    double min_confidence = 0.25;
-    if( inliers_idx.rows >= min_inliers)
-    {
-      double l = 5;
-      std::vector<cv::Point2f> pose_points2d;
-      pose_points2d.push_back(pnp_verification.backproject3DPoint(cv::Point3f(0,0,0)));
-      pose_points2d.push_back(pnp_verification.backproject3DPoint(cv::Point3f(l,0,0)));
-      pose_points2d.push_back(pnp_verification.backproject3DPoint(cv::Point3f(0,l,0)));
-      pose_points2d.push_back(pnp_verification.backproject3DPoint(cv::Point3f(0,0,l)));
-      draw3DCoordinateAxes(img_in2, pose_points2d);
-
-      drawObjectMesh(img_in2, &mesh, &pnp_verification, green);
-      drawObjectMesh(img_in2, &mesh, &pnp_verification_gt, yellow);
-
-    }
+    // Draw inliers
+    draw2DPoints(img_vis, list_points2d_inliers, blue);
 
   }
 
-  // -- Step X: Draw correspondences
-
-  // Switched the order due to a opencv bug
-  cv::drawMatches( img_in2, keypoints_scene, // scene image
-                   img_in, keypoints_model,  // model image
-                   matches_inliers, img_vis, red, blue);
-
-  // -- Step X: Draw some text for debugging purpose
-
-  // Draw some debug text
-  int inliers_int = inliers_idx.rows;
-  int outliers_int = good_matches.size() - inliers_int;
-  std::string inliers_str = boost::lexical_cast< std::string >(inliers_int);
-  std::string outliers_str = boost::lexical_cast< std::string >(outliers_int);
-  std::string n = boost::lexical_cast< std::string >(good_matches.size());
-  std::string text = "Found " + inliers_str + " of " + n + " matches";
-  std::string text2 = "Inliers: " + inliers_str + " - Outliers: " + outliers_str;
-
-  drawText(img_vis, text, green);
-  drawText2(img_vis, text2, red);
+  // Draw mesh
+  drawObjectMesh(img_vis, &mesh, &pnp_verification, green);
+  drawObjectMesh(img_vis, &mesh, &pnp_verification_gt, yellow);
 
   cv::imshow("MODEL GROUND TRUTH", img_vis);
-
 
   // PNP ERRORS:
   // Calculation of the rotation and translation error

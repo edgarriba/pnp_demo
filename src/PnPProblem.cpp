@@ -62,17 +62,19 @@ cv::Point3f get_nearest_3D_point(std::vector<cv::Point3f> &points_list, cv::Poin
 }
 
 // Custom constructor given the intrinsic camera parameters
+
 PnPProblem::PnPProblem(const double params[])
 {
-  _A_matrix = cv::Mat::zeros(3, 3, CV_64FC1);
-  _R_matrix = cv::Mat::zeros(3, 3, CV_64FC1);
-  _t_matrix = cv::Mat::zeros(3, 1, CV_64FC1);
-  _P_matrix = cv::Mat::zeros(3, 4, CV_64FC1);
-  _A_matrix.at<double>(0, 0) = params[0];  // fx
-  _A_matrix.at<double>(1, 1) = params[1];  // fy
-  _A_matrix.at<double>(0, 2) = params[2];  // cx
-  _A_matrix.at<double>(1, 2) = params[3];  // cy
+  _A_matrix = cv::Mat::zeros(3, 3, CV_64FC1);   // intrinsic camera parameters
+  _A_matrix.at<double>(0, 0) = params[0];       //      [ fx   0  cx ]
+  _A_matrix.at<double>(1, 1) = params[1];       //      [  0  fy  cy ]
+  _A_matrix.at<double>(0, 2) = params[2];       //      [  0   0   1 ]
+  _A_matrix.at<double>(1, 2) = params[3];
   _A_matrix.at<double>(2, 2) = 1;
+  _R_matrix = cv::Mat::zeros(3, 3, CV_64FC1);   // rotation matrix
+  _t_matrix = cv::Mat::zeros(3, 1, CV_64FC1);   // translation matrix
+  _P_matrix = cv::Mat::zeros(3, 4, CV_64FC1);   // rotation-translation matrix
+
 }
 
 PnPProblem::~PnPProblem()
@@ -123,29 +125,27 @@ bool PnPProblem::estimatePose( const std::vector<cv::Point3f> &list_points3d,
 }
 
 // Estimate the pose given a list of 2D/3D correspondences with RANSAC and the method to use
-void PnPProblem::estimatePoseRANSAC( const std::vector<cv::Point3f> &list_points3d,
-                                     const std::vector<cv::Point2f> &list_points2d,
-                                     int flags, cv::Mat &inliers, int iterationsCount,
-                                     double reprojectionError, int minInliersCount )
+
+void PnPProblem::estimatePoseRANSAC( const std::vector<cv::Point3f> &list_points3d, // list with model 3D coordinates
+                               const std::vector<cv::Point2f> &list_points2d,     // list with scene 2D coordinates
+                               int flags, cv::Mat &inliers, int iterationsCount,  // PnP method; inliers container
+                               double reprojectionError, int minInliersCount )    // Ransac parameters
 {
-  cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64FC1);
-  cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64FC1);
-  cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64FC1);
+  cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64FC1);  // vector of distortion coefficients
+  cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64FC1);          // output rotation vector
+  cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64FC1);    // output translation vector
 
-  /* RANSAC parameters */
-  bool useExtrinsicGuess = false;
+  bool useExtrinsicGuess = false;   // if true the function uses the provided rvec and tvec values as
+            // initial approximations of the rotation and translation vectors
 
-  // Pose estimation
   cv::solvePnPRansac( list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec,
-                      useExtrinsicGuess, iterationsCount, reprojectionError, minInliersCount,
-                      inliers, flags );
+                useExtrinsicGuess, iterationsCount, reprojectionError, minInliersCount,
+                inliers, flags );
 
-  // Transforms Rotation Vector to Matrix
-  Rodrigues(rvec,_R_matrix);
-  _t_matrix = tvec;
+  Rodrigues(rvec,_R_matrix);      // converts Rotation Vector to Matrix
+  _t_matrix = tvec;       // set translation matrix
 
-  // Set projection matrix
-  this->set_P_matrix(_R_matrix, _t_matrix);
+  this->set_P_matrix(_R_matrix, _t_matrix); // set rotation-translation matrix
 
 }
 
@@ -164,22 +164,24 @@ std::vector<cv::Point2f> PnPProblem::verify_points(Mesh *mesh)
 }
 
 // Backproject a 3D point to 2D using the estimated pose parameters
+
 cv::Point2f PnPProblem::backproject3DPoint(const cv::Point3f &point3d)
 {
-  // Temporal 3d Point vector [x y z 1]
+  // 3D point vector [x y z 1]'
   cv::Mat point3d_vec = cv::Mat(4, 1, CV_64FC1);
   point3d_vec.at<double>(0) = point3d.x;
   point3d_vec.at<double>(1) = point3d.y;
   point3d_vec.at<double>(2) = point3d.z;
   point3d_vec.at<double>(3) = 1;
 
-  // Calculation of temporal [u v 1]'
-  cv::Mat tmp_uv = _A_matrix * _P_matrix * point3d_vec;
+  // 2D point vector [u v 1]'
+  cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
+  point2d_vec = _A_matrix * _P_matrix * point3d_vec;
 
   // Normalization of [u v]
   cv::Point2f point2d;
-  point2d.x = tmp_uv.at<double>(0) / tmp_uv.at<double>(2);
-  point2d.y = tmp_uv.at<double>(1) / tmp_uv.at<double>(2);
+  point2d.x = point2d_vec.at<double>(0) / point2d_vec.at<double>(2);
+  point2d.y = point2d_vec.at<double>(1) / point2d_vec.at<double>(2);
 
   return point2d;
 }

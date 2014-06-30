@@ -163,6 +163,7 @@ std::vector<cv::Point2f> PnPProblem::verify_points(Mesh *mesh)
   return verified_points_2d;
 }
 
+
 // Backproject a 3D point to 2D using the estimated pose parameters
 
 cv::Point2f PnPProblem::backproject3DPoint(const cv::Point3f &point3d)
@@ -178,7 +179,7 @@ cv::Point2f PnPProblem::backproject3DPoint(const cv::Point3f &point3d)
   cv::Mat point2d_vec = cv::Mat(4, 1, CV_64FC1);
   point2d_vec = _A_matrix * _P_matrix * point3d_vec;
 
-  // Normalization of [u v]
+  // Normalization of [u v]'
   cv::Point2f point2d;
   point2d.x = point2d_vec.at<double>(0) / point2d_vec.at<double>(2);
   point2d.y = point2d_vec.at<double>(1) / point2d_vec.at<double>(2);

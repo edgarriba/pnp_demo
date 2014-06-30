@@ -54,17 +54,22 @@ cv::Scalar yellow(0,255,255);
 
 
 // Robust Matcher parameters
-int numKeyPoints = 2000; // 2500
-float ratio = 0.70f; // 80
+
+int numKeyPoints = 2000;      // number of detected keypoints
+float ratio = 0.70f;          // ratio test
+bool fast_match = true;       // fastRobustMatch() or robustMatch()
+
 
 // RANSAC parameters
 
-int iterationsCount = 500;  // number of Ransac iterations.
+int iterationsCount = 500;    // number of Ransac iterations.
 int reprojectionError = 2.0;  // maximum allowed distance to consider it an inlier.
-int minInliersCount = 70; // thresold of found inliers.
+int minInliersCount = 70;     // thresold of found inliers.
 
-// after RANSAC
-int minInliersKalman = 10; // 20
+
+// Kalman Filter parameters
+
+int minInliersKalman = 30;    // Kalman threshold updating
 
 
 /**********************************************************************************************************/
@@ -121,12 +126,16 @@ int main(int argc, char *argv[])
 
   rmatcher.setRatio(ratio); // set ratio test parameter
 
-  // Instantiate Kalman Filter
-  int nStates = 18, nMeasurements = 6, nInputs = 0;
-  double dt = 0.10; // 10 FPS
 
-  cv::KalmanFilter KF;
-  initKalmanFilter(KF, nStates, nMeasurements, nInputs, dt);
+  cv::KalmanFilter KF;         // instantiate Kalman Filter
+
+  int nStates = 18;            // the number of states
+  int nMeasurements = 6;       // the number of measured states
+  int nInputs = 0;             // the number of action control
+
+  double dt = 0.125;           // time between measurements (1/FPS)
+
+  initKalmanFilter(KF, nStates, nMeasurements, nInputs, dt);    // init function
 
   cv::Mat measurements(nMeasurements, 1, CV_64F); measurements.setTo(cv::Scalar(0));
   bool good_measurement = false;
@@ -170,8 +179,6 @@ int main(int argc, char *argv[])
 
   double tstart2, tstop2, ttime2; // algorithm metrics
   double tstart, tstop, ttime; // algorithm metrics
-
-  bool fast_match = true;
 
   cv::Mat frame, frame_vis;
 
@@ -280,20 +287,20 @@ int main(int argc, char *argv[])
 
     if(good_measurement)
     {
-      drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection, green);  // draw current pose
     }
     else
     {
-      drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow);
+      drawObjectMesh(frame_vis, &mesh, &pnp_detection_est, yellow); // draw estimated pose
     }
 
     double l = 5;
     std::vector<cv::Point2f> pose_points2d;
-    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,0,0)));
-    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(l,0,0)));
-    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,l,0)));
-    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,0,l)));
-    draw3DCoordinateAxes(frame_vis, pose_points2d);
+    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,0,0)));  // axis center
+    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(l,0,0)));  // axis x
+    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,l,0)));  // axis y
+    pose_points2d.push_back(pnp_detection_est.backproject3DPoint(cv::Point3f(0,0,l)));  // axis z
+    draw3DCoordinateAxes(frame_vis, pose_points2d);           // draw axes
 
     // FRAME RATE
 
@@ -342,34 +349,33 @@ int main(int argc, char *argv[])
 void initKalmanFilter(cv::KalmanFilter &KF, int nStates, int nMeasurements, int nInputs, double dt)
 {
 
-  //init Kalman
-  KF.init(nStates, nMeasurements, nInputs, CV_64F);
+  KF.init(nStates, nMeasurements, nInputs, CV_64F);                 // init Kalman Filter
 
-  cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));
-  cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-4));
-  cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));
+  cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));       // set process noise
+  cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-4));   // set measurement noise
+  cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));             // error covariance
 
 
-  // DYNAMIC MODEL
+                     /** DYNAMIC MODEL **/
 
-//  [1 0 0 dt  0  0 dt2   0   0 0 0 0  0  0  0   0   0   0]
-//  [0 1 0  0 dt  0   0 dt2   0 0 0 0  0  0  0   0   0   0]
-//  [0 0 1  0  0 dt   0   0 dt2 0 0 0  0  0  0   0   0   0]
-//  [0 0 0  1  0  0  dt   0   0 0 0 0  0  0  0   0   0   0]
-//  [0 0 0  0  1  0   0  dt   0 0 0 0  0  0  0   0   0   0]
-//  [0 0 0  0  0  1   0   0  dt 0 0 0  0  0  0   0   0   0]
-//  [0 0 0  0  0  0   1   0   0 0 0 0  0  0  0   0   0   0]
-//  [0 0 0  0  0  0   0   1   0 0 0 0  0  0  0   0   0   0]
-//  [0 0 0  0  0  0   0   0   1 0 0 0  0  0  0   0   0   0]
-//  [0 0 0  0  0  0   0   0   0 1 0 0 dt  0  0 dt2   0   0]
-//  [0 0 0  0  0  0   0   0   0 0 1 0  0 dt  0   0 dt2   0]
-//  [0 0 0  0  0  0   0   0   0 0 0 1  0  0 dt   0   0 dt2]
-//  [0 0 0  0  0  0   0   0   0 0 0 0  1  0  0  dt   0   0]
-//  [0 0 0  0  0  0   0   0   0 0 0 0  0  1  0   0  dt   0]
-//  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  1   0   0  dt]
-//  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   1   0   0]
-//  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   0   1   0]
-//  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   0   0   1]
+  //  [1 0 0 dt  0  0 dt2   0   0 0 0 0  0  0  0   0   0   0]
+  //  [0 1 0  0 dt  0   0 dt2   0 0 0 0  0  0  0   0   0   0]
+  //  [0 0 1  0  0 dt   0   0 dt2 0 0 0  0  0  0   0   0   0]
+  //  [0 0 0  1  0  0  dt   0   0 0 0 0  0  0  0   0   0   0]
+  //  [0 0 0  0  1  0   0  dt   0 0 0 0  0  0  0   0   0   0]
+  //  [0 0 0  0  0  1   0   0  dt 0 0 0  0  0  0   0   0   0]
+  //  [0 0 0  0  0  0   1   0   0 0 0 0  0  0  0   0   0   0]
+  //  [0 0 0  0  0  0   0   1   0 0 0 0  0  0  0   0   0   0]
+  //  [0 0 0  0  0  0   0   0   1 0 0 0  0  0  0   0   0   0]
+  //  [0 0 0  0  0  0   0   0   0 1 0 0 dt  0  0 dt2   0   0]
+  //  [0 0 0  0  0  0   0   0   0 0 1 0  0 dt  0   0 dt2   0]
+  //  [0 0 0  0  0  0   0   0   0 0 0 1  0  0 dt   0   0 dt2]
+  //  [0 0 0  0  0  0   0   0   0 0 0 0  1  0  0  dt   0   0]
+  //  [0 0 0  0  0  0   0   0   0 0 0 0  0  1  0   0  dt   0]
+  //  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  1   0   0  dt]
+  //  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   1   0   0]
+  //  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   0   1   0]
+  //  [0 0 0  0  0  0   0   0   0 0 0 0  0  0  0   0   0   1]
 
   // position
   KF.transitionMatrix.at<double>(0,3) = dt;
@@ -394,14 +400,14 @@ void initKalmanFilter(cv::KalmanFilter &KF, int nStates, int nMeasurements, int 
   KF.transitionMatrix.at<double>(11,17) = 0.5*pow(dt,2);
 
 
-  // MEASUREMENT MODEL
+           /** MEASUREMENT MODEL **/
 
-//  [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-//  [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-//  [0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-//  [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]
-//  [0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0]
-//  [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0]
+  //  [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+  //  [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+  //  [0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+  //  [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]
+  //  [0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0]
+  //  [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0]
 
   KF.measurementMatrix.at<double>(0,0) = 1;  // x
   KF.measurementMatrix.at<double>(1,1) = 1;  // y

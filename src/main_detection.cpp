@@ -62,14 +62,14 @@ bool fast_match = true;       // fastRobustMatch() or robustMatch()
 
 // RANSAC parameters
 
-int iterationsCount = 500;    // number of Ransac iterations.
-int reprojectionError = 2.0;  // maximum allowed distance to consider it an inlier.
-int minInliersCount = 70;     // thresold of found inliers.
+int iterationsCount = 500;      // number of Ransac iterations.
+float reprojectionError = 2.0;  // maximum allowed distance to consider it an inlier.
+float confidence = 0.99;        // thresold of found inliers.
 
 
 // Kalman Filter parameters
 
-int minInliersKalman = 30;    // Kalman threshold updating
+int minInliersKalman = 10;    // Kalman threshold updating
 
 
 /**********************************************************************************************************/
@@ -152,9 +152,9 @@ int main(int argc, char *argv[])
 
 
   cv::VideoCapture cap;                           // instantiate VideoCapture
-  (argc < 2) ? cap.open(0) : cap.open(argv[1]);   // open the default camera device
+  //(argc < 2) ? cap.open(0) : cap.open(argv[1]);   // open the default camera device
                                                   // or a recorder video
-
+  cap.open(video_path);
   if(!cap.isOpened())   // check if we succeeded
   {
     std::cout << "Could not open the camera device" << std::endl;
@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
       // -- Step 3: Estimate the pose using RANSAC approach
       pnp_detection.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
                                         cv::ITERATIVE, inliers_idx,
-                                        iterationsCount, reprojectionError, minInliersCount );
+                                        iterationsCount, reprojectionError, confidence );
 
 
       // -- Step 4: Catch the inliers keypoints to draw

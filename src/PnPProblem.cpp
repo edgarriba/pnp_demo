@@ -129,7 +129,7 @@ bool PnPProblem::estimatePose( const std::vector<cv::Point3f> &list_points3d,
 void PnPProblem::estimatePoseRANSAC( const std::vector<cv::Point3f> &list_points3d, // list with model 3D coordinates
                                const std::vector<cv::Point2f> &list_points2d,     // list with scene 2D coordinates
                                int flags, cv::Mat &inliers, int iterationsCount,  // PnP method; inliers container
-                               double reprojectionError, int minInliersCount )    // Ransac parameters
+                               float reprojectionError, float confidence )    // Ransac parameters
 {
   cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64FC1);  // vector of distortion coefficients
   cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64FC1);          // output rotation vector
@@ -139,7 +139,7 @@ void PnPProblem::estimatePoseRANSAC( const std::vector<cv::Point3f> &list_points
             // initial approximations of the rotation and translation vectors
 
   cv::solvePnPRansac( list_points3d, list_points2d, _A_matrix, distCoeffs, rvec, tvec,
-                useExtrinsicGuess, iterationsCount, reprojectionError, minInliersCount,
+                useExtrinsicGuess, iterationsCount, reprojectionError, confidence,
                 inliers, flags );
 
   Rodrigues(rvec,_R_matrix);      // converts Rotation Vector to Matrix

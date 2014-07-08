@@ -115,8 +115,8 @@ int main(int, char**)
 
   // RANSAC parameters
   int iterationsCount = 500;
-  int reprojectionError = 2.0;
-  int minInliersCount = 70;
+  float reprojectionError = 2.0;
+  float confidence = 0.99;
 
 
   /*
@@ -224,7 +224,7 @@ int main(int, char**)
   std::vector<cv::DMatch> good_matches;       // to obtain the 3D points of the model
   std::vector<cv::KeyPoint> keypoints_scene;  // to obtain the 2D points of the scene
 
-  //rmatcher.robustMatch(frame, good_matches, keypoints_scene, descriptors_model);
+  //rmatcher.fastRobustMatch(frame, good_matches, keypoints_scene, descriptors_model);
   rmatcher.robustMatch(img_vis, good_matches, keypoints_scene, descriptors_model);
 
   cv::Mat inliers_idx;
@@ -256,7 +256,7 @@ int main(int, char**)
     // -- Step 3: Estimate the pose using RANSAC approach
     pnp_verification.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
                                          cv::ITERATIVE, inliers_idx,
-                                         iterationsCount, reprojectionError, minInliersCount );
+                                         iterationsCount, reprojectionError, confidence );
 
 
     // -- Step 4: Catch the inliers keypoints

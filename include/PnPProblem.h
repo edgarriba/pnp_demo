@@ -30,7 +30,7 @@ public:
   bool estimatePose(const std::vector<cv::Point3f> &list_points3d, const std::vector<cv::Point2f> &list_points2d, int flags);
   void estimatePoseRANSAC( const std::vector<cv::Point3f> &list_points3d, const std::vector<cv::Point2f> &list_points2d,
                            int flags, cv::Mat &inliers,
-                           int iterationsCount, double reprojectionError, int minInliersCount );
+                           int iterationsCount, float reprojectionError, float confidence );
 
   cv::Mat get_A_matrix() const { return _A_matrix; }
   cv::Mat get_R_matrix() const { return _R_matrix; }

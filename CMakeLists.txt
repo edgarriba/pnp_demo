@@ -3,7 +3,7 @@ project( PNP_DEMO )
 
 ADD_DEFINITIONS(
     -std=c++11 
-	-std=c++0x
+    -std=c++0x
     # Other flags
 )
 
@@ -53,7 +53,12 @@ pnp_detection
 	src/RobustMatcher.cpp
 )
 
+add_executable( 
+pnp_test 
+	src/test_pnp.cpp
+)
+
 target_link_libraries( pnp_registration ${OpenCV_LIBS} )
 target_link_libraries( pnp_verification ${OpenCV_LIBS} )
 target_link_libraries( pnp_detection ${OpenCV_LIBS} )
-
+target_link_libraries( pnp_test ${OpenCV_LIBS} )

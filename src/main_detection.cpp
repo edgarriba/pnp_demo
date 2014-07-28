@@ -64,12 +64,12 @@ bool fast_match = true;       // fastRobustMatch() or robustMatch()
 
 int iterationsCount = 500;      // number of Ransac iterations.
 float reprojectionError = 2.0;  // maximum allowed distance to consider it an inlier.
-float confidence = 0.99;        // thresold of found inliers.
+float confidence = 0.95;        // ransac successful confidence.
 
 
 // Kalman Filter parameters
 
-int minInliersKalman = 10;    // Kalman threshold updating
+int minInliersKalman = 30;    // Kalman threshold updating
 
 
 /**********************************************************************************************************/
@@ -152,9 +152,9 @@ int main(int argc, char *argv[])
 
 
   cv::VideoCapture cap;                           // instantiate VideoCapture
-  //(argc < 2) ? cap.open(0) : cap.open(argv[1]);   // open the default camera device
+  (argc < 2) ? cap.open(0) : cap.open(argv[1]);   // open the default camera device
                                                   // or a recorder video
-  cap.open(video_path);
+  //cap.open(video_path);
   if(!cap.isOpened())   // check if we succeeded
   {
     std::cout << "Could not open the camera device" << std::endl;
@@ -196,11 +196,11 @@ int main(int argc, char *argv[])
 
     if(fast_match)
     {
-      rmatcher.robustMatch(frame, good_matches, keypoints_scene, descriptors_model);
+      rmatcher.fastRobustMatch(frame, good_matches, keypoints_scene, descriptors_model);
     }
     else
     {
-      rmatcher.fastRobustMatch(frame, good_matches, keypoints_scene, descriptors_model);
+      rmatcher.robustMatch(frame, good_matches, keypoints_scene, descriptors_model);
     }
 
 
@@ -227,11 +227,11 @@ int main(int argc, char *argv[])
     if(good_matches.size() > 0) // None matches, then RANSAC crashes
     {
 
+
       // -- Step 3: Estimate the pose using RANSAC approach
       pnp_detection.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
-                                        cv::ITERATIVE, inliers_idx,
+                                        cv::DLS, inliers_idx,
                                         iterationsCount, reprojectionError, confidence );
-
 
       // -- Step 4: Catch the inliers keypoints to draw
       for(int inliers_index = 0; inliers_index < inliers_idx.rows; ++inliers_index)
@@ -281,7 +281,6 @@ int main(int argc, char *argv[])
       pnp_detection_est.set_P_matrix(rotation_estimated, translation_estimated);
 
     }
-
 
     // -- Step X: Draw pose
 
@@ -352,7 +351,7 @@ void initKalmanFilter(cv::KalmanFilter &KF, int nStates, int nMeasurements, int 
   KF.init(nStates, nMeasurements, nInputs, CV_64F);                 // init Kalman Filter
 
   cv::setIdentity(KF.processNoiseCov, cv::Scalar::all(1e-5));       // set process noise
-  cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-4));   // set measurement noise
+  cv::setIdentity(KF.measurementNoiseCov, cv::Scalar::all(1e-2));   // set measurement noise
   cv::setIdentity(KF.errorCovPost, cv::Scalar::all(1));             // error covariance
 
 
@@ -416,8 +415,8 @@ void initKalmanFilter(cv::KalmanFilter &KF, int nStates, int nMeasurements, int 
   KF.measurementMatrix.at<double>(4,10) = 1; // pitch
   KF.measurementMatrix.at<double>(5,11) = 1; // yaw
 
-  std::cout << "A " << std::endl << KF.transitionMatrix << std::endl;
-  std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;
+  //std::cout << "A " << std::endl << KF.transitionMatrix << std::endl;
+  //std::cout << "C " << std::endl << KF.measurementMatrix << std::endl;
 
 }
 

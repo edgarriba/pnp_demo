@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
 
       // -- Step 3: Estimate the pose using RANSAC approach
       pnp_detection.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
-                                        cv::DLS, inliers_idx,
+                                        cv::ITERATIVE, inliers_idx,
                                         iterationsCount, reprojectionError, confidence );
 
       // -- Step 4: Catch the inliers keypoints to draw

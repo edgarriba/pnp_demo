@@ -31,7 +31,7 @@
   std::string ply_read_path = "../Data/box.ply";
 
   // YAML writting path
-  std::string write_path = "../Data/cookies_ORB_vga_1.yml";
+  std::string write_path = "../Data/cookies_ORB.yml";
 
   // Boolean the know if the registration it's done
   bool end_registration = false;

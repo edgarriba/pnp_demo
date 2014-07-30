@@ -62,8 +62,11 @@
    */
   Mesh mesh;
   ModelRegistration registration;
-  PnPProblem pnp_verification(params_CANON);
-  PnPProblem pnp_verification_gt(params_CANON);
+  PnPProblem pnp_verification_epnp(params_CANON);
+  PnPProblem pnp_verification_iter(params_CANON);
+  PnPProblem pnp_verification_p3p(params_CANON);
+  PnPProblem pnp_verification_dls(params_CANON);
+  PnPProblem pnp_verification_gt(params_CANON); // groud truth
 
 
 // Mouse events for model registration
@@ -206,7 +209,7 @@ int main(int, char**)
 
 
   /*
-   * PNP VERIFICATION
+   * EXTRACT CORRRESPONDENCES
    *
    */
 
@@ -232,10 +235,6 @@ int main(int, char**)
   std::vector<cv::Point2f> list_points2d_inliers;
   std::vector<cv::Point3f> list_points3d_inliers;
 
-
-  if(good_matches.size() > 0) // If no matches, RANSAC crashes
-  {
-
     // -- Step 2: Find out the 2D/3D correspondences
 
     std::vector<cv::Point3f> list_points3d_model_match; // container for the model 3D coordinates found in the scene
@@ -250,50 +249,73 @@ int main(int, char**)
     }
 
     // Draw outliers
-    draw2DPoints(img_vis, list_points2d_scene_match, red);
+    //draw2DPoints(img_vis, list_points2d_scene_match, red);
 
+  /*
+   * COMPUTE PNP ERRORS:
+   * Calculation of the rotation and translation error
+   *
+   */
 
-    // -- Step 3: Estimate the pose using RANSAC approach
-    pnp_verification.estimatePoseRANSAC( list_points3d_model_match, list_points2d_scene_match,
-                                         cv::ITERATIVE, inliers_idx,
-                                         iterationsCount, reprojectionError, confidence );
-
-
-    // -- Step 4: Catch the inliers keypoints
-    for(int inliers_index = 0; inliers_index < inliers_idx.rows; ++inliers_index)
-    {
-      int n = inliers_idx.at<int>(inliers_index);
-      cv::Point2f point2d = list_points2d_scene_match[n];
-      cv::Point3f point3d = list_points3d_model_match[n];
-      list_points2d_inliers.push_back(point2d);
-      list_points3d_inliers.push_back(point3d);
-    }
-
-    // Draw inliers
-    draw2DPoints(img_vis, list_points2d_inliers, blue);
-
-  }
+  pnp_verification_epnp.estimatePose( list_points3d_model_match, list_points2d_scene_match, cv::EPNP);
+  pnp_verification_iter.estimatePose( list_points3d_model_match, list_points2d_scene_match, cv::ITERATIVE);
+  //pnp_verification_p3p.estimatePose( list_points3d_model_match, list_points2d_scene_match, cv::P3P);
+  pnp_verification_dls.estimatePose( list_points3d_model_match, list_points2d_scene_match, cv::DLS);
 
   // Draw mesh
-  drawObjectMesh(img_vis, &mesh, &pnp_verification, green);
+  drawObjectMesh(img_vis, &mesh, &pnp_verification_dls, green);
   drawObjectMesh(img_vis, &mesh, &pnp_verification_gt, yellow);
 
-  cv::imshow("MODEL GROUND TRUTH", img_vis);
-
-  // PNP ERRORS:
-  // Calculation of the rotation and translation error
+   cv::imshow("MODEL GROUND TRUTH", img_vis);
 
   cv::Mat t_true = pnp_verification_gt.get_t_matrix();
-  cv::Mat t = pnp_verification.get_t_matrix();
+  cv::Mat t_epnp = pnp_verification_epnp.get_t_matrix();
+  cv::Mat t_iter = pnp_verification_iter.get_t_matrix();
+  cv::Mat t_p3p = pnp_verification_p3p.get_t_matrix();
+  cv::Mat t_dls = pnp_verification_dls.get_t_matrix();
 
   cv::Mat R_true = pnp_verification_gt.get_R_matrix();
-  cv::Mat R = pnp_verification.get_R_matrix();
+  cv::Mat R_epnp = pnp_verification_epnp.get_R_matrix();
+  cv::Mat R_iter = pnp_verification_iter.get_R_matrix();
+  cv::Mat R_p3p = pnp_verification_p3p.get_R_matrix();
+  cv::Mat R_dls = pnp_verification_dls.get_R_matrix();
 
-  double error_trans = get_translation_error(t_true, t);
-  double error_rot = get_rotation_error(R_true, R)*180/CV_PI;
+  double error_trans_epnp = get_translation_error(t_true, t_epnp);
+  double error_rot_epnp = get_rotation_error(R_true, R_epnp)*180/CV_PI;
 
-  std::cout << "Translation error: " << error_trans << std::endl;
-  std::cout << "Rotation error: " << error_rot << std::endl;
+  double error_trans_iter = get_translation_error(t_true, t_iter);
+  double error_rot_iter = get_rotation_error(R_true, R_iter)*180/CV_PI;
+
+  double error_trans_p3p = get_translation_error(t_true, t_p3p);
+  double error_rot_p3p = get_rotation_error(R_true, R_p3p)*180/CV_PI;
+
+  double error_trans_dls = get_translation_error(t_true, t_dls);
+  double error_rot_dls = get_rotation_error(R_true, R_dls)*180/CV_PI;
+
+
+  std::cout << std::endl << "****  EPNP ERRORS  **** " << std::endl;
+
+  std::cout << "Translation error: " << error_trans_epnp << " m." << std::endl;
+  std::cout << "Rotation error: " << error_rot_epnp << " deg." << std::endl;
+
+
+  std::cout << std::endl << "****  ITERATIVE ERRORS  **** " << std::endl;
+
+  std::cout << "Translation error: " << error_trans_iter << " m." << std::endl;
+  std::cout << "Rotation error: " << error_rot_iter << " deg." << std::endl;
+
+
+  std::cout << std::endl << "****  P3P ERRORS  **** " << std::endl;
+
+  std::cout << "Translation error: " << error_trans_p3p << " m." << std::endl;
+  std::cout << "Rotation error: " << error_rot_p3p << " deg." << std::endl;
+
+
+  std::cout << std::endl << "****  DLS ERRORS  **** " << std::endl;
+
+  std::cout << "Translation error: " << error_trans_dls << " m." << std::endl;
+  std::cout << "Rotation error: " << error_rot_dls << " deg." << std::endl;
+
 
   // Show image until ESC pressed
   cv::waitKey(0);

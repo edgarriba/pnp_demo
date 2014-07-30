@@ -9,6 +9,7 @@
 #define UTILS_H_
 
 #include <iostream>
+#include <time.h>
 #include <cv.h>
 
 
@@ -52,5 +53,23 @@ cv::Mat quat2rot(cv::Mat &q);
 cv::Mat euler2rot(const cv::Mat & euler);
 cv::Mat rot2euler(const cv::Mat & rotationMatrix);
 cv::Mat quat2euler(const cv::Mat & q);
+
+class Timer
+{
+public:
+  Timer();
+    void start() { tstart = (double)clock()/CLOCKS_PER_SEC; }
+    void stop()  { tstop = (double)clock()/CLOCKS_PER_SEC; }
+    void reset()  { tstart = 0;  tstop = 0;}
+
+    double getTimeMilli() const { return (tstop-tstart)*1000; }
+    double getTimeSec()   const {  return tstop-tstart; }
+
+private:
+    double tstart, tstop, ttime;
+};
+
+
+
 
 #endif /* UTILS_H_ */

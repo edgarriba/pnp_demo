@@ -18,15 +18,24 @@
 #include "ModelRegistration.h"
 #include "Utils.h"
 
-std::string video_path = "../Data/box1.mp4";     // video
-//std::string video_path = "../Data/box2.mp4";    // video
-//std::string video_path = "../Data/box3_hd.MP4";    // video HD
-
 //  COOKIES BOX - ORB
 std::string yml_read_path = "../Data/cookies_ORB.yml"; // 3dpts + descriptors
 
 // COOKIES BOX MESH
 std::string ply_read_path = "../Data/box.ply";   // mesh
+
+void help()
+{
+std::cout
+<< "--------------------------------------------------------------------------"   << std::endl
+<< "This program shows how to detect an object given its 3D textured model. You can choose to "
+<< "use a recorded video or the webcam." << std::endl
+<< "Usage:"                                                                       << std::endl
+<< "./pnp_detection ~/path_to_video/box.mp4"                                      << std::endl
+<< "./pnp_detection "                                                             << std::endl
+<< "--------------------------------------------------------------------------"   << std::endl
+<< std::endl;
+}
 
 
 /*
@@ -41,7 +50,6 @@ double params_WEBCAM[] = { width*f/sx,   // fx
                            height*f/sy,  // fy
                            width/2,      // cx
                            height/2};    // cy
-
 
 
 /*
@@ -96,7 +104,7 @@ void fillMeasurements( cv::Mat &measurements,
 int main(int argc, char *argv[])
 {
 
-  std::cout << "!!!Hello Detection!!!" << std::endl;
+  help();
 
   PnPProblem pnp_detection(params_WEBCAM);
   PnPProblem pnp_detection_est(params_WEBCAM);
@@ -154,7 +162,7 @@ int main(int argc, char *argv[])
   cv::VideoCapture cap;                           // instantiate VideoCapture
   (argc < 2) ? cap.open(0) : cap.open(argv[1]);   // open the default camera device
                                                   // or a recorder video
-  //cap.open(video_path);
+
   if(!cap.isOpened())   // check if we succeeded
   {
     std::cout << "Could not open the camera device" << std::endl;

@@ -7,7 +7,8 @@ ADD_DEFINITIONS(
     # Other flags
 )
 
-find_package( Boost OpenCV REQUIRED )
+find_package( Boost REQUIRED )
+find_package( OpenCV REQUIRED )
 
 include_directories( 
 	$(PNP_DEMO_SOURCE_DIR)/include 

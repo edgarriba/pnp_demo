@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 {
 
   RNG rng;
-  TickMeter tm;
+ // TickMeter tm;
   vector<vector<double> > error_trans(4), error_rot(4), comp_time(4);
 
   int maxpoints = 2000;
@@ -116,18 +116,18 @@ int main(int argc, char *argv[])
       projectedPoints.resize(opoints.size());
       projectPoints(Mat(opoints), trueRvec, trueTvec, intrinsics, distCoeffs, projectedPoints);
 
-      tm.reset(); tm.start();
+      //tm.reset(); tm.start();
 
       solvePnP(opoints, projectedPoints, intrinsics, distCoeffs, rvec, tvec, false, method);
 
-      tm.stop();
+     // tm.stop();
 
-      double compTime = tm.getTimeMilli();
+    //  double compTime = tm.getTimeMilli();
       double rvecDiff = norm(rvec-trueRvec), tvecDiff = norm(tvec-trueTvec);
 
       error_rot[method].push_back(rvecDiff);
       error_trans[method].push_back(tvecDiff);
-      comp_time[method].push_back(compTime);
+      //comp_time[method].push_back(compTime);
 
     }
 

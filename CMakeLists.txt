@@ -7,12 +7,10 @@ ADD_DEFINITIONS(
     # Other flags
 )
 
-find_package( Boost REQUIRED )
 find_package( OpenCV REQUIRED )
 
 include_directories( 
 	$(PNP_DEMO_SOURCE_DIR)/include 
-	${Boost_INCLUDE_DIR}
 	${OpenCV_INCLUDE_DIRS} 
 )
 
@@ -60,7 +58,7 @@ pnp_test
 	src/test_pnp.cpp
 )
 
-target_link_libraries( pnp_registration ${Boost_LIBRARIES} ${OpenCV_LIBS} )
-target_link_libraries( pnp_verification ${Boost_LIBRARIES} ${OpenCV_LIBS} )
-target_link_libraries( pnp_detection ${Boost_LIBRARIES} ${OpenCV_LIBS} )
-target_link_libraries( pnp_test ${Boost_LIBRARIES} ${OpenCV_LIBS} )
+target_link_libraries( pnp_registration ${OpenCV_LIBS} )
+target_link_libraries( pnp_verification ${OpenCV_LIBS} )
+target_link_libraries( pnp_detection ${OpenCV_LIBS} )
+target_link_libraries( pnp_test ${OpenCV_LIBS} )

@@ -9,7 +9,6 @@
 #define UTILS_H_
 
 #include <iostream>
-#include <opencv2/core/core.hpp>
 
 #include "PnPProblem.h"
 

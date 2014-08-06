@@ -9,7 +9,7 @@
 #define UTILS_H_
 
 #include <iostream>
-#include <cv.h>
+#include <opencv2/core/core.hpp>
 
 #include "PnPProblem.h"
 

@@ -30,7 +30,7 @@ public:
   bool estimatePose(const std::vector<cv::Point3f> &list_points3d, const std::vector<cv::Point2f> &list_points2d, int flags);
   void estimatePoseRANSAC( const std::vector<cv::Point3f> &list_points3d, const std::vector<cv::Point2f> &list_points2d,
                            int flags, cv::Mat &inliers,
-                           int iterationsCount, float reprojectionError, float confidence );
+                           int iterationsCount, float reprojectionError, double confidence );
 
   cv::Mat get_A_matrix() const { return _A_matrix; }
   cv::Mat get_R_matrix() const { return _R_matrix; }
@@ -49,5 +49,10 @@ private:
   /** The computed projection matrix */
   cv::Mat _P_matrix;
 };
+
+// Functions for Möller–Trumbore intersection algorithm
+cv::Point3f CROSS(cv::Point3f v1, cv::Point3f v2);
+double DOT(cv::Point3f v1, cv::Point3f v2);
+cv::Point3f SUB(cv::Point3f v1, cv::Point3f v2);
 
 #endif /* PNPPROBLEM_H_ */
